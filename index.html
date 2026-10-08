@@ -376,6 +376,10 @@ dialog::backdrop{background:rgba(12,45,90,.6)}
 .lote-it .warn{color:#8a5a00;background:#fdf1d3;border-radius:8px;padding:4px 8px;margin:2px 0;font-size:13.5px}
 .lote-it .fld.mini{max-width:420px}
 
+.ev .ic.food{width:15px;height:15px;vertical-align:-2px;color:#b8560a;display:inline-block}
+.ev.k-colacion{--tt:#fde0bb;box-shadow:0 0 0 1.5px #df7a1f66 inset}
+.ev.k-colacion b{color:#8a4106}
+
 </style>
 </head>
 <body>
@@ -406,7 +410,7 @@ const API_URL = (window.APP_CONFIG && window.APP_CONFIG.API_URL) || "";
 const app = document.getElementById('app');
 if(!window.HORARIOS){ app.innerHTML='<div class="layout one"><div class="panel"><h2>No se cargaron los datos</h2><p>Falta el archivo data.js junto a index.html.</p></div></div>'; return; }
 const clonar = o => JSON.parse(JSON.stringify(o));
-const VERSION_APP = 'v16';
+const VERSION_APP = 'v17';
 const BASE = clonar(window.HORARIOS);
 let D = clonar(BASE);
 
@@ -426,6 +430,7 @@ const leeSS=k=>{try{return sessionStorage.getItem(k);}catch(_){return null;}};
 const y_=arr=>arr.length<2?arr.join(''):arr.slice(0,-1).join(', ')+' y '+arr[arr.length-1];
 
 const ICON={
+  food:'<svg class="ic food" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v7M4 3v5a3 3 0 0 0 6 0V3M7 10v11"/><path d="M17 21V3c-2.4 1.2-3.5 4-3.5 7.5 0 1.9 1.3 2.5 3.5 2.5"/></svg>',
   pdf:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>',
   wa:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 20.5l1.7-5.3A8.4 8.4 0 1 1 21 11.5z"/><path d="M9 8.5c.3 3 2.5 5.2 5.5 5.6l1.3-1.4-2-1-1 .7a4 4 0 0 1-1.7-1.7l.7-1-1-2z" fill="currentColor" stroke="none"/></svg>',
   print:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7" rx="1"/></svg>'
@@ -760,8 +765,9 @@ function stageDocente(){
 }
 
 function sigSlot(s){return [s.cid,s.a,s.det||'',(s.co||[]).join(','),(s.docs||[]).join(','),(s.pie||[]).map(q=>q.id+(q.ar?'*':'')).join(','),s.ar?1:0,s.nota||''].join('~');}
-function eventosDoc(p){
-  const w=TS[p.id]||emptyWeek(); const out=[];
+function eventosDoc(p){ return eventosPersona(p,'doc'); }
+function eventosPersona(p,tp){
+  const w=(tp==='pie'?PS:TS)[p.id]||emptyWeek(); const out=[];
   DIAS.forEach(d=>{
     /* clases simultáneas de la misma asignatura (por ejemplo 7° A y 7° B) se muestran en una sola tarjeta */
     const gr=new Map();
@@ -771,7 +777,7 @@ function eventosDoc(p){
     const dia=[];
     [...gr.values()].sort((x,y)=>mins(x[0].ini)-mins(y[0].ini)||mins(x[0].fin)-mins(y[0].fin)).forEach(g=>{
       const s=g[0], sg=g.map(sigSlot).join('||'), u=dia[dia.length-1];
-      if(u&&u.sig===sg&&u.fin===s.ini){u.fin=s.fin;} else dia.push({d,ini:s.ini,fin:s.fin,t:'clase',s,g,sig:sg});
+      if(u&&u.sig===sg&&u.fin===s.ini){u.fin=s.fin;} else dia.push({d,ini:s.ini,fin:s.fin,t:'clase',tp,s,g,sig:sg});
     });
     dia.forEach(e=>out.push(e));
   });
@@ -808,8 +814,9 @@ function datosClase(e){
   else if(comun){ nombre=esc(pref(cname(q.cid)))+' '+g.map(x=>link(x,letra(cname(x.cid)))).join(' y '); txt=pref(cname(q.cid))+' '+g.map(x=>letra(cname(x.cid))).join(' y '); }
   else { nombre=g.map(x=>link(x,cname(x.cid))).join(' y '); txt=g.map(x=>cname(x.cid)).join(' y '); }
   const co=[...new Set(g.flatMap(x=>x.co||[]))];
-  const pies=g.map(x=>({lab:g.length>1?letra(cname(x.cid)):'',lista:x.pie||[],cambio:x.nota==='cambio'})).filter(x=>x.lista.length||x.cambio);
-  return {q,g,sub,nombre,txt,co,pies};
+  const docs=[...new Set(g.flatMap(x=>x.docs||[]))], ar=g.some(x=>x.ar);
+  const pies=e.tp==='pie'?[]:g.map(x=>({lab:g.length>1?letra(cname(x.cid)):'',lista:x.pie||[],cambio:x.nota==='cambio'})).filter(x=>x.lista.length||x.cambio);
+  return {q,g,sub,nombre,txt,co,pies,docs,ar,pie:e.tp==='pie'};
 }
 const EVCOL={AC:['#2f72c4','#e3eefb'],AR:['#0a7d8c','#d9f1f4'],taller:['#7b57c0','#eee8f9'],priorizados:['#7b57c0','#eee8f9'],colab:['#3f9a52','#e3f4e6'],colacion:['#df7a1f','#fdecdc'],prep:['#b48514','#faf1d6'],reunion:['#c04a8a','#fae6f0'],nolectivo:['#8a97a6','#eef1f5'],traslado:['#64798d','#e9eff4'],otro:['#9aabbb','#f1f4f8']};
 function itemsLeyenda(evs){
@@ -825,7 +832,7 @@ function leyendaEv(evs){
 }
 const OTRAS_ET=['prep','reunion','colab','colacion','taller','traslado','otro','nolectivo'];
 /* calendario (profesionales PIE) */
-const TIPO_N={clase:'Clase',AC:'Aula común',AR:'Aula de recursos',taller:'Taller',priorizados:'Estudiantes priorizados',colab:'Trabajo colaborativo',colacion:'Colación',nolectivo:'No lectivo',prep:'Preparación',reunion:'Reunión',traslado:'Traslado',otro:'Otra actividad'};
+const TIPO_N={clase:'Clase',AC:'Aula común',AR:'Aula de recursos',taller:'Taller',priorizados:'Estudiantes priorizados',colab:'Trabajo colaborativo',colacion:'Almuerzo (colación)',nolectivo:'No lectivo',prep:'Preparación',reunion:'Reunión',traslado:'Traslado',otro:'Otra actividad'};
 const TIPO_SOFT={colab:1,colacion:1,nolectivo:1,prep:1,reunion:1,traslado:1,otro:1};
 const rotuloEv=e=>e.det||TIPO_N[e.t];
 function eventosPro(h){return (h||[]).filter(e=>TIPO_N[e.t]);}
@@ -858,15 +865,15 @@ function calendario(horario,op){
       const soft=TIPO_SOFT[e.t];
       if(e.t==='clase'){
         const dc=datosClase(e), q=dc.q, k=subjKey(q.a);
-        const tit=dc.txt+' · '+dc.sub+' · '+e.ini+' a '+e.fin+dc.pies.map(z=>'. PIE'+(z.lab?' '+z.lab:'')+': '+z.lista.map(y=>shortP(y.id)+(y.ar?' (AR)':'')).join(', ')).join('');
-        return '<div class="ev s-'+k+'" title="'+esc(tit)+'" style="top:'+top+'px;height:'+ht+'px;left:calc('+l+'% + 1px);width:calc('+w+'% - 3px)"><small>'+esc(e.ini+' a '+e.fin)+'</small><b>'+dc.nombre+'</b><small>'+esc(dc.sub)+'</small>'+(dc.co.length?'<small>Con '+esc(dc.co.map(shortD).join(' / '))+'</small>':'')+dc.pies.map(z=>'<small class="pietxt">PIE'+(z.lab?' '+esc(z.lab):'')+': '+(z.lista.length?z.lista.map(y=>'<button class="lnk" data-go="pie" data-id="'+esc(y.id)+'">'+esc(shortP(y.id))+(y.ar?' (AR)':'')+'</button>').join(', '):'por confirmar')+'</small>').join('')+'</div>';
+        const tit=dc.txt+' · '+dc.sub+' · '+e.ini+' a '+e.fin+(dc.pie&&dc.ar?'. Aula de Recursos':'')+dc.pies.map(z=>'. PIE'+(z.lab?' '+z.lab:'')+': '+z.lista.map(y=>shortP(y.id)+(y.ar?' (AR)':'')).join(', ')).join('');
+        return '<div class="ev s-'+k+'" title="'+esc(tit)+'" style="top:'+top+'px;height:'+ht+'px;left:calc('+l+'% + 1px);width:calc('+w+'% - 3px)"><small>'+esc(e.ini+' a '+e.fin)+'</small><b>'+dc.nombre+'</b><small>'+esc(dc.sub)+'</small>'+(dc.co.length?'<small>Con '+esc(dc.co.map(shortD).join(' / '))+'</small>':'')+(dc.pie&&dc.docs.length?'<small>Docente: '+esc(dc.docs.map(shortD).join(' / '))+'</small>':'')+(dc.pie&&dc.ar?'<div class="pies"><span class="pie-chip ar">Aula de Recursos <em>AR</em></span></div>':'')+dc.pies.map(z=>'<small class="pietxt">PIE'+(z.lab?' '+esc(z.lab):'')+': '+(z.lista.length?z.lista.map(y=>'<button class="lnk" data-go="pie" data-id="'+esc(y.id)+'">'+esc(shortP(y.id))+(y.ar?' (AR)':'')+'</button>').join(', '):'por confirmar')+'</small>').join('')+'</div>';
       }
       const cls='ev k-'+e.t.toLowerCase();
       const cs=(e.cs||[]).map(c=>'<button class="lnk" data-go="cursos" data-id="'+esc(c)+'">'+esc(cname(c))+'</button>').join(', ');
       const det=[e.a,e.s].filter(Boolean).join(' · ');
       const tit=TIPO_N[e.t]+' '+e.ini+' a '+e.fin+((e.cs||[]).length?'. '+e.cs.map(cname).join(', '):'')+(det?'. '+det:'');
       return '<div class="'+cls+'" title="'+esc(tit)+'" style="top:'+top+'px;height:'+ht+'px;left:calc('+l+'% + 1px);width:calc('+w+'% - 3px)">'+
-        (soft?'<b>'+esc(rotuloEv(e))+'</b><small>'+esc(e.ini+' a '+e.fin)+'</small>':'<small>'+esc(TIPO_N[e.t])+' · '+esc(e.ini)+'</small><b>'+(cs||esc(e.det||e.a||'Sin curso indicado'))+'</b>'+(det&&cs?'<small>'+esc(det)+'</small>':''))+'</div>';
+        (soft?'<b>'+(e.t==='colacion'?ICON.food+' Almuerzo':esc(rotuloEv(e)))+'</b><small>'+esc(e.ini+' a '+e.fin)+'</small>':'<small>'+esc(TIPO_N[e.t])+' · '+esc(e.ini)+'</small><b>'+(cs||esc(e.det||e.a||'Sin curso indicado'))+'</b>'+(det&&cs?'<small>'+esc(det)+'</small>':''))+'</div>';
     }).join('')+'</div>';
   });
   return (op.sinDias?'':dayPills())+h+'</div></div>'+(op.sinLeyenda?'':leyendaEv(evs));
@@ -893,7 +900,7 @@ function stagePie(){
   const lista=Object.keys(docs).sort((a,b)=>docs[b]-docs[a]);
   const ar=DIAS.reduce((s,d)=>s+w[d].filter(x=>x.ar).length,0);
   return '<div class="stage-head"><div class="grow"><p class="kicker">Docente PIE</p><h2>'+esc(p.nombre)+'</h2><p class="meta"><span>Acompaña '+n+' bloques por semana'+(ar?' ('+ar+' en Aula de Recursos)':'')+'</span></p></div>'+btnsCompartir('pie',p.id)+'</div>'+
-    gridPersona(w,'pie')+
+    (n||eventosPersona(p,'pie').length?calendario(eventosPersona(p,'pie'),{K:1.75,sinLeyenda:true})+leyendaEv(eventosPersona(p,'pie'))+(eventosPersona(p,'pie').some(e=>e.t!=='clase')?'<p class="help otras-nota">Las horas de colaboración, reuniones, almuerzo y otras actividades sirven solo para saber en qué está la persona.</p>':''):'<div class="panel">No hay horas cargadas.</div>')+
     '<div class="panel resumen"><h4>Docentes con los que trabaja</h4><ul>'+lista.map(t=>'<li><button class="lnk" data-go="docentes" data-id="'+esc(t)+'">'+esc(DOC[t]?DOC[t].nombre:t)+'</button>: '+docs[t]+' bloques</li>').join('')+'</ul></div>';
 }
 
@@ -1455,6 +1462,12 @@ function bGrilla(ctx,y,dib,filas,hoyIdx){
   });
   return yy+6;
 }
+function dibCubiertos(ctx,x,y,col){
+  ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=1.7; ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.beginPath(); ctx.moveTo(x+1,y); ctx.lineTo(x+1,y+6); ctx.moveTo(x+5,y); ctx.lineTo(x+5,y+6); ctx.moveTo(x+9,y); ctx.lineTo(x+9,y+6);
+  ctx.moveTo(x+1,y+6); ctx.quadraticCurveTo(x+5,y+11,x+9,y+6); ctx.moveTo(x+5,y+9); ctx.lineTo(x+5,y+17);
+  ctx.moveTo(x+16,y+17); ctx.lineTo(x+16,y); ctx.quadraticCurveTo(x+12,y+4,x+12.5,y+9); ctx.lineTo(x+16,y+10); ctx.stroke(); ctx.restore();
+}
 function bCalendario(ctx,y,dib,evs,hoyIdx,Kp){
   const x0=IMG_M, wT=60, gap=6, wD=(IMG_W-2*IMG_M-wT-gap*5)/5;
   const t0=Math.floor(Math.min.apply(null,evs.map(e=>mins(e.ini)))/60)*60, t1=Math.ceil(Math.max.apply(null,evs.map(e=>mins(e.fin)))/60)*60;
@@ -1472,15 +1485,19 @@ function bCalendario(ctx,y,dib,evs,hoyIdx,Kp){
           const dc=datosClase(e), q=dc.q; col=PAL[q.el?'ele':subjKey(q.a)]||PAL.otr;
           partes=[[e.ini+' a '+e.fin,'500 12px '+FONT,'#52667f'],[dc.txt,'700 14px '+FONT,'#10243f'],[dc.sub,'500 12.5px '+FONT,'#52667f']];
           if(dc.co.length) partes.push(['Con '+dc.co.map(shortD).join(' / '),'500 12px '+FONT,'#2c4258']);
+          if(dc.pie&&dc.docs.length) partes.push(['Docente: '+dc.docs.map(shortD).join(' / '),'500 12px '+FONT,'#2c4258']);
+          if(dc.pie&&dc.ar) partes.push(['Aula de Recursos (AR)','600 12px '+FONT,'#064f5d']);
           dc.pies.forEach(z=>{ if(z.lista.length) partes.push(['PIE'+(z.lab?' '+z.lab:'')+': '+z.lista.map(y=>shortP(y.id)+(y.ar?' (AR)':'')).join(', '),'600 12px '+FONT,'#064f5d']); });
         } else {
           col=EVCOL[e.t]||EVCOL.otro;
-          partes=soft?[[rotuloEv(e),'700 13.5px '+FONT,'#52667f'],[e.ini+' a '+e.fin,'500 12px '+FONT,'#7b8da1']]:[[TIPO_N[e.t]+' · '+e.ini+' a '+e.fin,'500 12px '+FONT,'#52667f'],[(e.cs&&e.cs.length?e.cs.map(cname).join(', '):(e.det||e.a||'')),'700 14px '+FONT,'#10243f'],[[e.a,e.s].filter(Boolean).join(' · '),'500 12.5px '+FONT,'#52667f']];
+          partes=soft?[[e.t==='colacion'?'Almuerzo':rotuloEv(e),'700 13.5px '+FONT,e.t==='colacion'?'#8a4106':'#52667f'],[e.ini+' a '+e.fin,'500 12px '+FONT,'#7b8da1']]:[[TIPO_N[e.t]+' · '+e.ini+' a '+e.fin,'500 12px '+FONT,'#52667f'],[(e.cs&&e.cs.length?e.cs.map(cname).join(', '):(e.det||e.a||'')),'700 14px '+FONT,'#10243f'],[[e.a,e.s].filter(Boolean).join(' · '),'500 12.5px '+FONT,'#52667f']];
         }
         rr(ctx,ex+1,ey,ew-3,eh,9); ctx.fillStyle=col[1]; ctx.fill();
         ctx.save(); rr(ctx,ex+1,ey,ew-3,eh,9); ctx.clip(); ctx.fillStyle=col[0]; ctx.fillRect(ex+1,ey,5,eh);
         let ty=ey+16; const mw=ew-3-18;
-        partes.forEach(p=>{ if(!p[0]) return; ctx.font=p[1]; ctx.fillStyle=p[2]; envolver(ctx,p[0],mw).forEach(l=>{ if(ty<ey+eh+2) ctx.fillText(l,ex+12,ty); ty+=16; }); });
+        const alm=e.t==='colacion';
+        if(alm){ ctx.fillStyle='#fde0bb'; ctx.fillRect(ex+1,ey,ew-3,eh); ctx.fillStyle=col[0]; ctx.fillRect(ex+1,ey,5,eh); dibCubiertos(ctx,ex+13,ey+5,'#b8560a'); }
+        partes.forEach((p,pi)=>{ if(!p[0]) return; ctx.font=p[1]; ctx.fillStyle=p[2]; const dx=(alm&&pi===0)?22:0; envolver(ctx,p[0],mw-dx).forEach(l=>{ if(ty<ey+eh+2) ctx.fillText(l,ex+12+dx,ty); ty+=16; }); });
         ctx.restore();
       });
     });
@@ -1595,7 +1612,7 @@ function especificacion(tipo,id){
     }
     const w=PS[id]||emptyWeek();
     return {archivo:'horario-'+id,titulo:'Horario de '+p.nombre,texto:'Horario de '+p.nombre+' (Colegio Marina de Chile)',bloques:[
-      ['t','Docente PIE',p.nombre,['Apoyo a los cursos y docentes indicados']],['g',filasSemana(w,'pie')],['n','AR: atiende en Aula de Recursos.']]};
+      ['t','Docente PIE',p.nombre,['Apoyo a los cursos y docentes indicados']],(eventosPersona(p,'pie').length?['c',eventosPersona(p,'pie'),1.7]:['n','Todavía no hay horas cargadas.']),['l',itemsLeyenda(eventosPersona(p,'pie'))],['n','AR: atiende en Aula de Recursos. Las horas de colaboración, reuniones, almuerzo y otras actividades sirven solo para saber en qué está la persona.']]};
   }
   if(tipo==='electivo'){
     const g=GR[id], sl=unirSlots(g.slots), pies=pieDeGrupo(g);
@@ -2024,6 +2041,7 @@ function aplicarPersonaX(X,tipo,id,entradas,opts){
     p.horario=entradas.filter(e=>['AC','AR','taller','priorizados','colab','colacion','nolectivo'].indexOf(e.t)>=0).map(e=>({d:e.d,ini:e.ini,fin:e.fin,t:e.t,cs:e.cs,a:e.a,s:e.s}));
     quitarPDeTodo(X,id); derivarPro(X,p); return omitidos;
   }
+  if(tipo==='pie'){ const pp=X.pie.find(q=>q.id===id); if(pp) pp.horario=otrasDe(entradas); }
   if(opts.limpia){
     Object.keys(X.cursos).forEach(cid=>X.cursos[cid].blocks.forEach(b=>Object.keys(b.c).forEach(d=>{
       const e=b.c[d]; if(e.el) return;
