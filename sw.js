@@ -1,7 +1,7 @@
 /* Service worker: deja la app instalable y abre rápido.
    Archivos propios: primero la red (para ver cambios) y, sin internet, la copia guardada.
    Para forzar actualización en todos los equipos, cambie el número de VERSION. */
-const VERSION = 'horarios-v6';
+const VERSION = 'horarios-v7';
 const ARCHIVOS = ['./', 'index.html', 'data.js', 'config.js', 'manifest.webmanifest',
   'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
