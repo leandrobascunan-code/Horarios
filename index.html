@@ -369,6 +369,13 @@ dialog::backdrop{background:rgba(12,45,90,.6)}
 .ev small.pietxt{color:#064f5d;font-weight:600}
 .ev small.pietxt .lnk{font-weight:700}
 
+.lote{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
+.lote-it{background:var(--paper);border:1px solid var(--line-2);border-radius:12px;padding:10px 14px;display:grid;gap:4px}
+.lote-it.off{opacity:.6}
+.lote-it .arch{color:var(--ink-2)}
+.lote-it .warn{color:#8a5a00;background:#fdf1d3;border-radius:8px;padding:4px 8px;margin:2px 0;font-size:13.5px}
+.lote-it .fld.mini{max-width:420px}
+
 </style>
 </head>
 <body>
@@ -399,7 +406,7 @@ const API_URL = (window.APP_CONFIG && window.APP_CONFIG.API_URL) || "";
 const app = document.getElementById('app');
 if(!window.HORARIOS){ app.innerHTML='<div class="layout one"><div class="panel"><h2>No se cargaron los datos</h2><p>Falta el archivo data.js junto a index.html.</p></div></div>'; return; }
 const clonar = o => JSON.parse(JSON.stringify(o));
-const VERSION_APP = 'v15';
+const VERSION_APP = 'v16';
 const BASE = clonar(window.HORARIOS);
 let D = clonar(BASE);
 
@@ -510,7 +517,7 @@ construir();
 
 /* ---------- estado y enrutado ---------- */
 const TABS=[['cursos','Cursos'],['electivos','Electivos'],['docentes','Docentes'],['pie','Equipo PIE'],['permisos','Permisos y cobertura'],['config','Configuración']];
-const SUBS=[['horarios','Horarios'],['electivos','Electivos'],['personas','Personas'],['importar','Cargar desde Excel'],['datos','Datos y guardado']];
+const SUBS=[['horarios','Editar cursos'],['electivos','Editar electivos'],['personas','Editar docentes y PIE'],['impcurso','Cargar cursos desde Excel'],['impdoc','Cargar docentes y PIE desde Excel'],['datos','Datos y guardado']];
 const S={tab:'cursos',id:null,dia:null,q:'',ciclo:'',railOpen:false,desde:null,hasta:null,off:new Set(),
   cargando:false,errCarga:'',version:0,dirty:false,guardando:false,
   auth:{ok:!API_URL,clave:''},authErr:'',
@@ -537,6 +544,7 @@ function leerHash(){
   if(S.tab==='docentes'&&!DOC[S.id]) S.id=null;
   if(S.tab==='pie'&&!PIE[S.id]) S.id=null;
   if(S.tab==='permisos'&&!DOC[S.id]) S.id=null;
+  if(S.tab==='config'&&S.id==='importar') S.id='impdoc';
   if(S.tab==='config'&&!SUBS.some(x=>x[0]===S.id)) S.id='horarios';
 }
 function ir(tab,id,extra){
@@ -770,20 +778,25 @@ function eventosDoc(p){
   return out.concat(ordenarOtras(out,eventosPro(p.horario).filter(e=>OTRAS_ET.indexOf(e.t)>=0)));
 }
 /* Las clases mandan; las otras actividades se recortan para no superponerse (queda todo en una sola columna por día) */
-const PRIO_OTRAS={colacion:0,reunion:1,colab:2,taller:3,traslado:4,prep:5,otro:6,nolectivo:7};
+const PRIO_EV={AC:0,AR:0,priorizados:1,taller:1,colacion:2,reunion:3,colab:4,traslado:5,prep:6,otro:7,nolectivo:8};
 function ordenarOtras(clases,otras){
   const res=[];
   DIAS.forEach(d=>{
-    const ocupado=clases.filter(c=>c.d===d).map(c=>[mins(c.ini),mins(c.fin)]);
-    const lista=otras.filter(e=>e.d===d).slice().sort((a,b)=>(PRIO_OTRAS[a.t]??9)-(PRIO_OTRAS[b.t]??9)||mins(a.ini)-mins(b.ini));
+    const ocupado=clases.filter(c=>c.d===d).map(c=>[mins(c.ini),mins(c.fin),-1]);
+    const lista=otras.filter(e=>e.d===d).slice().sort((a,b)=>(PRIO_EV[a.t]??9)-(PRIO_EV[b.t]??9)||mins(a.ini)-mins(b.ini));
     lista.forEach(e=>{
+      const pr=PRIO_EV[e.t]??9;
       let tramos=[[mins(e.ini),mins(e.fin)]];
-      ocupado.forEach(o=>{ const n=[]; tramos.forEach(t=>{ if(o[1]<=t[0]||o[0]>=t[1]){n.push(t);return;} if(t[0]<o[0]) n.push([t[0],o[0]]); if(o[1]<t[1]) n.push([o[1],t[1]]); }); tramos=n; });
-      tramos.filter(t=>t[1]-t[0]>=15).forEach(t=>{ ocupado.push([t[0],t[1]]); res.push(Object.assign({},e,{ini:hhmm(t[0]),fin:hhmm(t[1])})); });
+      ocupado.forEach(o=>{
+        if(!(o[2]<pr||(o[2]===pr&&pr>0))) return;
+        const n=[]; tramos.forEach(t=>{ if(o[1]<=t[0]||o[0]>=t[1]){n.push(t);return;} if(t[0]<o[0]) n.push([t[0],o[0]]); if(o[1]<t[1]) n.push([o[1],t[1]]); }); tramos=n;
+      });
+      tramos.filter(t=>t[1]-t[0]>=15).forEach(t=>{ ocupado.push([t[0],t[1],pr]); res.push(Object.assign({},e,{ini:hhmm(t[0]),fin:hhmm(t[1])})); });
     });
   });
   return res.sort((a,b)=>DIAS.indexOf(a.d)-DIAS.indexOf(b.d)||mins(a.ini)-mins(b.ini));
 }
+function eventosPie(p){ return ordenarOtras([],eventosPro(p.horario)); }
 function datosClase(e){
   const g=e.g||[e.s], q=g[0];
   const sub=q.el?cursosTxt(q.cursos):(q.det?q.a+': '+q.det:q.a);
@@ -873,7 +886,7 @@ function stagePie(){
     const evs=eventosPro(p.horario).filter(e=>e.t==='AC'||e.t==='AR');
     const ar=evs.filter(e=>e.t==='AR').length;
     return '<div class="stage-head"><div class="grow"><p class="kicker">'+esc(p.cargo||'Profesional PIE')+'</p><h2>'+esc(p.nombre)+'</h2><p class="meta"><span>'+evs.length+' atenciones por semana'+(ar?', '+ar+' en aula de recursos':'')+'</span></p></div>'+btnsCompartir('pie',p.id)+'</div>'+
-      calendario(p.horario)+resumenCursosPro(p.horario);
+      calendario(eventosPie(p))+resumenCursosPro(p.horario);
   }
   const w=PS[p.id]||emptyWeek(); const n=countSlots(w);
   const docs={}; DIAS.forEach(d=>w[d].forEach(s=>s.docs.forEach(t=>docs[t]=(docs[t]||0)+1)));
@@ -1023,7 +1036,7 @@ function stageConfig(){
   if(S.id==='horarios') body=cfgHorarios();
   else if(S.id==='electivos') body=cfgElectivos();
   else if(S.id==='personas') body=cfgPersonas();
-  else if(S.id==='importar') body=cfgImportar();
+  else if(S.id==='impcurso'||S.id==='impdoc') body=cfgImportar(S.id==='impcurso'?'curso':'persona');
   else body=cfgDatos();
   return '<div class="layout one"><section class="stage" aria-live="polite"><div class="stage-head"><div class="grow"><p class="kicker">Solo para quien administra los horarios</p><h2>Configuración</h2><p class="meta">Edite horarios, nombres y cursos. '+(API_URL?'Los cambios guardados los ven todos al abrir la app.':'Sin servidor conectado: los cambios se publican descargando data.js.')+'</p></div>'+(API_URL?'<button class="btn" data-act="salir">Cerrar sesión</button>':'')+'</div>'+subnav()+body+'</section></div>';
 }
@@ -1575,7 +1588,7 @@ function especificacion(tipo,id){
   if(tipo==='pie'){
     const p=PIE[id];
     if(p.tipo==='profesional'){
-      const evs=eventosPro(p.horario);
+      const evs=eventosPie(p);
       return {archivo:'horario-'+id,titulo:'Horario de '+p.nombre,texto:'Horario de '+p.nombre+' (Colegio Marina de Chile)',bloques:[
         ['t',p.cargo||'Profesional PIE',p.nombre,['Atención en aula común y en aula de recursos']],(evs.length?['c',evs]:['n','Todavía no hay atenciones cargadas.']),
         ['l',itemsLeyenda(evs)]]};
@@ -2029,7 +2042,7 @@ function aplicarPersonaX(X,tipo,id,entradas,opts){
 }
 
 /* --- docentes: otras horas y electivos --- */
-const OTRAS_T=['prep','reunion','colab','colacion','taller','traslado','otro'];
+const OTRAS_T=['prep','reunion','colab','colacion','taller','traslado','otro','nolectivo'];
 function otrasDe(entradas){ return entradas.filter(e=>OTRAS_T.indexOf(e.t)>=0).map(e=>{const o={d:e.d,ini:e.ini,fin:e.fin,t:e.t}; if(e.det) o.det=e.det; return o;}); }
 function planElectivos(entradas){
   const m={};
@@ -2108,19 +2121,22 @@ function selPersonas(sel){
   const g=(titulo,arr,pref)=>arr.length?'<optgroup label="'+titulo+'">'+arr.slice().sort((a,b)=>sortKey(a.nombre).localeCompare(sortKey(b.nombre),'es')).map(p=>'<option value="'+pref+':'+esc(p.id)+'"'+(sel===pref+':'+p.id?' selected':'')+'>'+esc(surnameFirst(p.nombre))+'</option>').join('')+'</optgroup>':'';
   return g('Docentes',D.docentes,'doc')+g('Docentes PIE',D.pie.filter(p=>p.tipo!=='profesional'),'pie')+g('Profesionales PIE',D.pie.filter(p=>p.tipo==='profesional'),'pro');
 }
-function cfgImportar(){
-  const m=C.imp||(C.imp=nuevoImp());
-  let h='<div class="panel"><h3>Pegar un horario copiado desde Excel</h3><p class="help">Copie las celdas en Excel (Ctrl+C) y péguelas aquí (Ctrl+V). La app lee el horario, le muestra qué cambiaría y recién entonces lo aplica.</p>'+
-    '<div class="seg" role="group" aria-label="Tipo de horario"><button data-act="impmodo" data-v="curso" aria-pressed="'+(m.modo==='curso')+'">Horario de un curso</button><button data-act="impmodo" data-v="persona" aria-pressed="'+(m.modo==='persona')+'">Horario de una persona</button></div>'+
-    '<p class="help">'+(m.modo==='curso'?'Formato del panel por curso: título del curso, filas con las horas y las asignaturas de lunes a viernes, y debajo de cada bloque los nombres del docente y del apoyo PIE. Si pega solo asignaturas, se conservan los docentes actuales.':'Formato del horario individual de docentes y profesionales: columnas Desde, Hasta y Lunes a Viernes, con textos como "3° Medio B Historia" o "A.R 4° Medio A".')+'</p>'+
-    '<div class="filebox"><label class="btn sig filebtn">Cargar archivo Excel (.xlsx)<input type="file" id="imp-file" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label><span class="help">'+(m.arch?'Archivo cargado: <b>'+esc(m.arch.nombre)+'</b>':'La app lo lee sola. También puede pegar las celdas abajo.')+'</span></div>'+
+function cfgImportar(modo){
+  if(!C.imp||C.imp.modo!==modo) C.imp=Object.assign(nuevoImp(),{modo});
+  const m=C.imp, curso=modo==='curso';
+  let h='<div class="panel"><h3>'+(curso?'Cargar el horario de un curso':'Cargar horarios de docentes y profesionales PIE')+'</h3><p class="help">'+(curso?'Cargue el archivo de Excel del curso o copie las celdas y péguelas aquí (Ctrl+V). La app lee el horario, le muestra qué cambiaría y recién entonces lo aplica.':'Cargue uno o varios archivos de Excel, uno por persona, o copie las celdas de una persona y péguelas aquí. La app lee todas las jornadas (mañana y tarde), le muestra qué cambiaría y recién entonces lo aplica.')+'</p>'+
+    '<p class="help">'+(curso?'Formato del panel por curso: título del curso, filas con las horas y las asignaturas de lunes a viernes, y debajo de cada bloque los nombres del docente y del apoyo PIE. Si pega solo asignaturas, se conservan los docentes actuales.':'Formato del horario individual: columnas Desde, Hasta y Lunes a Viernes, con textos como "3° Medio B Historia" o "A.R 4° Medio A".')+'</p>'+
+    '<div class="filebox"><label class="btn sig filebtn">'+(curso?'Cargar archivo Excel (.xlsx)':'Cargar archivos Excel (.xlsx)')+'<input type="file" id="imp-file" accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"'+(curso?'':' multiple')+' hidden></label><span class="help">'+(m.lote?'Archivos cargados: <b>'+m.lote.items.length+'</b>':m.arch?'Archivo cargado: <b>'+esc(m.arch.nombre)+'</b>':(curso?'La app lo lee sola.':'Puede elegir varios archivos a la vez (Ctrl o Mayús al hacer clic).'))+'</span></div>'+
     (m.arch&&m.arch.hojas.length>1?'<label class="fld"><span>Hoja del archivo</span><select id="imp-hoja">'+m.arch.hojas.map((h,i)=>'<option value="'+i+'"'+(i===(m.hoja||0)?' selected':'')+'>'+esc(h.name)+'</option>').join('')+'</select></label>':'')+
     (m.arch&&m.modo==='curso'&&m.paneles&&m.paneles.length>1?'<label class="fld"><span>Curso dentro de la hoja</span><select id="imp-panel">'+m.paneles.map((n,i)=>'<option value="'+i+'"'+(i===(m.pidx||0)?' selected':'')+'>'+esc(n)+'</option>').join('')+'</select></label>':'')+
-    (m.arch?'':'<label class="fld"><span>Aquí va lo copiado</span><textarea id="imp-texto" spellcheck="false" placeholder="Pegue aquí">'+esc(m.texto)+'</textarea></label>');
+    ((m.arch||m.lote)?'':'<label class="fld"><span>Aquí va lo copiado</span><textarea id="imp-texto" spellcheck="false" placeholder="Pegue aquí">'+esc(m.texto)+'</textarea></label>');
   if(m.modo==='curso') h+='<label class="fld"><span>Curso (si no se detecta solo)</span><select id="imp-cid"><option value="">Detectar automáticamente</option>'+D.estructura.map(e=>'<optgroup label="'+esc(e.ciclo)+'">'+e.niveles.flatMap(n=>n.cursos).map(id=>'<option value="'+esc(id)+'"'+(id===m.cid?' selected':'')+'>'+esc(cname(id))+'</option>').join('')+'</optgroup>').join('')+'</select></label>';
-  else h+='<label class="fld"><span>Persona (si no se detecta sola)</span><select id="imp-pid"><option value="">Detectar automáticamente</option>'+selPersonas(m.pid)+'</select></label>';
-  h+='<div class="btn-row"><button class="btn'+(m.arch?'':' sig')+'" data-act="impleer">'+(m.arch?'Leer de nuevo':'Leer lo pegado')+'</button>'+((m.texto||m.arch)?'<button class="btn" data-act="impborrar">Borrar</button>':'')+'</div>'+(m.err?'<p class="err" role="alert">'+esc(m.err)+'</p>':'')+'</div>';
-  if(m.res) h+=previewImp(m);
+  else if(!m.lote) h+='<label class="fld"><span>Persona (si no se detecta sola)</span><select id="imp-pid"><option value="">Detectar automáticamente</option>'+selPersonas(m.pid)+'</select></label>';
+  if(m.lote) h+='<div class="btn-row"><button class="btn" data-act="impborrar">Borrar</button></div>';
+  else h+='<div class="btn-row"><button class="btn'+(m.arch?'':' sig')+'" data-act="impleer">'+(m.arch?'Leer de nuevo':'Leer lo pegado')+'</button>'+((m.texto||m.arch)?'<button class="btn" data-act="impborrar">Borrar</button>':'')+'</div>';
+  h+=(m.err?'<p class="err" role="alert">'+esc(m.err)+'</p>':'')+'</div>';
+  if(m.lote) h+=previewLote(m);
+  else if(m.res) h+=previewImp(m);
   return h;
 }
 function optsMapa(sel,rol){
@@ -2257,24 +2273,126 @@ function leerImportado(){
     if(!p.filas.length){m.err='No encontré filas de horario bajo los días.';return;}
     const pr=proponerCurso(p,cid,I); pr.modo='curso'; if(paneles.length>1&&!m.arch) pr.warns.unshift('Pegó '+paneles.length+' cursos a la vez: se usó solo el primero ('+cname(cid)+'). Copie un curso por vez.'); m.res=pr;
   }else{
-    let r=leerHorarioPersona(g);
-    if(!r.entradas.length){m.err='No encontré un horario. Copie desde la fila con LUNES a VIERNES hacia abajo, incluidas las columnas de horas.';return;}
-    let t=null;
-    if(m.pid){const q=m.pid.split(':'); t={tipo:q[0],id:q[1]};}
-    else (r.nombres||[]).some(nm=>{ t=resolverPersona(I,nm)||buscarPorNombre(I,nm); return !!t; });
-    if(!t){m.err='No pude saber de quién es el horario'+(r.nombre?' ("'+r.nombre+'")':'')+'. Elija a la persona en la lista.';return;}
-    if(t.tipo==='pie'&&PIE[t.id]&&PIE[t.id].tipo==='profesional') t.tipo='pro';
-    if(t.tipo==='doc') r=leerHorarioPersona(g,true);
-    const warns=[]; const sinCurso=r.entradas.filter(e=>(e.t==='AC'||e.t==='AR')&&!e.cs.length).length;
-    if(sinCurso) warns.push(sinCurso+' entradas no indican el curso y no se asignan a ninguno.');
-    if(t.tipo!=='doc'&&r.entradas.some(e=>e.t==='EL')) warns.push('Las clases en electivos no se aplican a este tipo de persona: edítelas en la sección Electivos.');
-    if(!(g.merges&&g.merges.length)) warns.push('Las celdas combinadas de Excel llegan solo en su primera fila: revise que las duraciones sean las correctas.');
-    if(t.tipo==='doc'){
-      const plan=planElectivos(r.entradas); m.el=decisionesIniciales(plan,t.id);
-      m.res={modo:'persona',tipo:t.tipo,id:t.id,entradas:r.entradas,plan,warns,prev:o=>{const X=clonar(D); aplicarDocX(X,t.id,r.entradas,o,plan,m.el); return X;}};
-    }else m.res={modo:'persona',tipo:t.tipo,id:t.id,entradas:r.entradas,warns,prev:o=>{const X=clonar(D); aplicarPersonaX(X,t.tipo,t.id,r.entradas,o); return X;}};
+    const r=analizarPersona(g,I,m.pid);
+    if(r.err){m.err=r.err;return;}
+    if(r.tipo==='doc'){
+      m.el=decisionesIniciales(r.plan,r.id);
+      r.prev=o=>{const X=clonar(D); aplicarDocX(X,r.id,r.entradas,o,r.plan,m.el); return X;};
+    }else r.prev=o=>{const X=clonar(D); aplicarPersonaX(X,r.tipo,r.id,r.entradas,o); return X;};
+    m.res=r;
   }
 }
+/* lee una hoja de horario individual y dice de quién es */
+function analizarPersona(g,I,pid){
+  let r=leerHorarioPersona(g);
+  if(!r.entradas.length) return {err:'No encontré un horario. Copie desde la fila con LUNES a VIERNES hacia abajo, incluidas las columnas de horas.'};
+  let t=null;
+  if(pid){const q=pid.split(':'); t={tipo:q[0],id:q[1]};}
+  else (r.nombres||[]).some(nm=>{ t=resolverPersona(I,nm)||buscarPorNombre(I,nm); return !!t; });
+  if(!t) return {err:'No pude saber de quién es el horario'+(r.nombre?' ("'+r.nombre+'")':'')+'. Elija a la persona en la lista.'};
+  if(t.tipo==='pie'&&PIE[t.id]&&PIE[t.id].tipo==='profesional') t.tipo='pro';
+  if(t.tipo==='doc') r=leerHorarioPersona(g,true);
+  const warns=[]; const sinCurso=r.entradas.filter(e=>(e.t==='AC'||e.t==='AR')&&!e.cs.length).length;
+  if(sinCurso) warns.push(sinCurso+' entradas no indican el curso y no se asignan a ninguno.');
+  if(t.tipo!=='doc'&&r.entradas.some(e=>e.t==='EL')) warns.push('Las clases en electivos no se aplican a este tipo de persona: edítelas en la sección Electivos.');
+  if(!(g.merges&&g.merges.length)) warns.push('Las celdas combinadas de Excel llegan solo en su primera fila: revise que las duraciones sean las correctas.');
+  return {modo:'persona',tipo:t.tipo,id:t.id,entradas:r.entradas,plan:t.tipo==='doc'?planElectivos(r.entradas):[],warns,nombreHoja:r.nombre};
+}
+
+/* ----- varios archivos a la vez (docentes y profesionales) ----- */
+const hojaDudosa=n=>/reempl|copia|combinado/i.test(n||'');
+function puntajeHoja(r){
+  if(r.tipo!=='doc') return 0.5;
+  const w=TS[r.id]||emptyWeek(); let tot=0,sc=0;
+  r.entradas.filter(e=>['AC','AR','EL'].indexOf(e.t)>=0).forEach(e=>{tot++; if((w[e.d]||[]).some(x=>Math.min(mins(x.fin),mins(e.fin))-Math.max(mins(x.ini),mins(e.ini))>=20)) sc++;});
+  return tot?sc/tot:0;
+}
+const tokNom=t=>norm(t).split(/[^a-z]+/).filter(x=>x.length>1);
+function analizarItem(it,I){
+  if(!it.grids) return;
+  it.hojas=it.grids.map(h=>{const r=analizarPersona(h.grid,I,it.pid); r.hoja=h.name; if(!r.err) r.pts=puntajeHoja(r)-(hojaDudosa(h.name)?0.5:0); return r;});
+  if(!it.manual){ let b=-1,bs=-9; it.hojas.forEach((r,i)=>{ if(!r.err&&r.pts>bs){bs=r.pts;b=i;} }); it.sel=b<0?0:b; }
+  const r=it.hojas[it.sel]; it.aviso='';
+  if(r&&!r.err){
+    const nom=r.tipo==='doc'?(DOC[r.id]||{}).nombre:(PIE[r.id]||{}).nombre, ft=new Set(tokNom(it.nombre.replace(/\.xlsx?$/i,'').replace(/#U([0-9a-f]{4})/gi,(_,h)=>String.fromCharCode(parseInt(h,16)))));
+    const comunes=tokNom(nom||'').filter(x=>ft.has(x)).length;
+    if(comunes<Math.min(2,tokNom(nom||'').length)) { it.aviso='El nombre del archivo no coincide con '+(nom||'la persona detectada')+'. Revise antes de aplicar.'; if(!it.manualInc) it.inc=false; }
+    else if(hojaDudosa(r.hoja)) it.aviso='La hoja elegida parece un reemplazo o copia.';
+  }
+}
+async function cargarLote(files){
+  const m=C.imp; m.err=''; m.res=null; m.arch=null; m.lote=null;
+  if(typeof DecompressionStream==='undefined'){ m.err='Este navegador no puede abrir archivos Excel. Actualícelo, o cargue de a uno.'; render(); return; }
+  const I=indicePersonas(), items=[];
+  for(const f of files){
+    const it={nombre:f.name,inc:true,sel:0,pid:''};
+    try{
+      if(!/\.xls[xm]$/i.test(f.name)) throw new Error('Debe ser un archivo .xlsx.');
+      const hojas=await leerXlsx(await f.arrayBuffer());
+      it.grids=hojas.filter(h=>tieneDias(h.grid)).map(h=>({name:h.name,grid:h.grid}));
+      if(!it.grids.length) throw new Error('No encontré los días Lunes a Viernes.');
+    }catch(err){ it.err=err.message&&err.message.length<90&&!/^xlsx$|^zip$/.test(err.message)?err.message:'No pude leer este archivo.'; it.inc=false; }
+    items.push(it);
+  }
+  items.forEach(it=>analizarItem(it,I));
+  items.forEach(it=>{ const r=it.hojas&&it.hojas[it.sel]; if(!it.err&&(!r||r.err)){ it.inc=false; } });
+  m.lote={items,opts:{limpia:false,reemplaza:false}};
+  render();
+}
+function decLote(r){
+  const dec={}; let omit=0;
+  r.plan.forEach(p=>{ const d=decisionesIniciales([p],r.id)[p.k]; if(d.acc.indexOf('act:')===0) dec[p.k]=d; else {dec[p.k]={acc:'omitir'}; omit++;} });
+  return {dec,omit};
+}
+function resumenItem(it,L){
+  const r=it.hojas[it.sel]; if(!r||r.err) return null;
+  const k=JSON.stringify([it.sel,it.pid,L.opts]); if(it._k===k&&it._res) return it._res;
+  let o;
+  if(r.tipo==='pro'){ o={tipo:'pro',n:r.entradas.filter(e=>['AC','AR','taller','priorizados','colab','colacion','nolectivo'].indexOf(e.t)>=0).length}; }
+  else{
+    const X=clonar(D), dl=r.tipo==='doc'?decLote(r):{dec:{},omit:0};
+    if(r.tipo==='doc') aplicarDocX(X,r.id,r.entradas,L.opts,r.plan,dl.dec); else aplicarPersonaX(X,r.tipo,r.id,r.entradas,L.opts);
+    const antes=clavesPersona(D,r.tipo,r.id), despues=clavesPersona(X,r.tipo,r.id);
+    o={tipo:r.tipo,add:[...despues].filter(x=>!antes.has(x)).length,quita:[...antes].filter(x=>!despues.has(x)).length,otras:r.tipo==='doc'?otrasDe(r.entradas).length:0,el:r.plan.length,elOmit:dl.omit};
+  }
+  it._k=k; it._res=o; return o;
+}
+function previewLote(m){
+  const L=m.lote, n=L.items.filter(i=>i.inc&&i.hojas&&i.hojas[i.sel]&&!i.hojas[i.sel].err).length;
+  let h='<div class="panel"><h3>Esto es lo que encontré en '+L.items.length+(L.items.length===1?' archivo':' archivos')+'</h3>'+
+    '<div class="preview"><label class="chk"><input type="checkbox" data-act="loteopt" data-k="limpia"'+(L.opts.limpia?' checked':'')+'> Quitar a cada persona de las clases que no aparecen en su archivo</label>'+
+    '<label class="chk"><input type="checkbox" data-act="loteopt" data-k="reemplaza"'+(L.opts.reemplaza?' checked':'')+'> Reemplazar a quien figure hoy como docente en esas clases</label>'+
+    '<p class="help">Marcadas solo las personas que quiere aplicar. Los electivos se actualizan solo si la persona ya figura en ellos; los demás se omiten (créelos en Electivos).</p></div><ul class="lote">';
+  L.items.forEach((it,i)=>{
+    const r=it.hojas&&it.hojas[it.sel];
+    h+='<li class="lote-it'+(it.inc?'':' off')+'">';
+    if(it.err){ h+='<b>'+esc(it.nombre)+'</b><p class="err">'+esc(it.err)+'</p></li>'; return; }
+    const nom=r&&!r.err?(r.tipo==='doc'?DOC[r.id].nombre:PIE[r.id].nombre):'Persona sin identificar';
+    h+='<label class="chk"><input type="checkbox" data-act="loteinc" data-i="'+i+'"'+(it.inc?' checked':'')+(r&&!r.err?'':' disabled')+'> <b>'+esc(nom)+'</b></label><small class="arch">'+esc(it.nombre)+'</small>';
+    if(r&&r.err) h+='<p class="err">'+esc(r.err)+'</p>';
+    else{
+      const o=resumenItem(it,L);
+      h+='<p class="help">'+(o.tipo==='pro'?o.n+' atenciones en el horario.':o.add+' clases nuevas, '+o.quita+' se quitan'+(o.tipo==='doc'?'. '+o.otras+' otras horas'+(o.el?'. '+o.el+(o.el===1?' electivo':' electivos')+(o.elOmit?' ('+o.elOmit+' se omiten)':''):''):'')+'.')+'</p>';
+    }
+    if(it.aviso) h+='<p class="warn">'+esc(it.aviso)+'</p>';
+    if(it.hojas.length>1) h+='<label class="fld mini"><span>Hoja</span><select data-act="lotehoja" data-i="'+i+'">'+it.hojas.map((q,j)=>'<option value="'+j+'"'+(j===it.sel?' selected':'')+'>'+esc(q.hoja)+(q.err?' (sin horario)':'')+'</option>').join('')+'</select></label>';
+    h+='<details class="det"><summary>Cambiar la persona</summary><label class="fld mini"><span>Persona</span><select data-act="lotepid" data-i="'+i+'"><option value="">Detectada: '+esc(nom)+'</option>'+selPersonas(it.pid)+'</select></label></details></li>';
+  });
+  h+='</ul><div class="btn-row"><button class="btn sig" data-act="lotaplicar"'+(n?'':' disabled')+'>Aplicar a '+n+(n===1?' persona':' personas')+(API_URL?' y guardar':'')+'</button><button class="btn" data-act="impborrar">Cancelar</button></div></div>';
+  return h;
+}
+async function aplicarLote(){
+  const L=C.imp.lote; let n=0;
+  L.items.forEach(it=>{
+    if(!it.inc) return; const r=it.hojas&&it.hojas[it.sel]; if(!r||r.err) return;
+    if(r.tipo==='doc') aplicarDocX(D,r.id,r.entradas,L.opts,r.plan,decLote(r).dec); else aplicarPersonaX(D,r.tipo,r.id,r.entradas,L.opts);
+    n++;
+  });
+  C.imp=Object.assign(nuevoImp(),{modo:'persona'}); marcarSucio(); render();
+  aviso('Se aplicaron los horarios de '+n+(n===1?' persona.':' personas.'),4500);
+  if(API_URL) await guardar();
+}
+function _finLote(){}
 function crearPersonaImp(texto,rol,cache){
   const k=rol+'|'+texto; if(cache[k]) return cache[k];
   const id=slug(texto);
@@ -2429,10 +2547,11 @@ app.addEventListener('click',e=>{
     D.electivos=D.electivos.filter(x=>x.id!==id);
     marcarSucio(); C.eg=null; C.confirm=null; render(); aviso('Se quitó el electivo '+(g?g.nombre:''));
   }
-  else if(act==='impmodo'){C.imp=Object.assign(nuevoImp(),{modo:a.dataset.v,texto:(C.imp&&C.imp.texto)||'',arch:(C.imp&&C.imp.arch)||null,hoja:(C.imp&&C.imp.hoja)||0}); if(C.imp.arch){ const h=C.imp.arch.hojas; if(!tieneDias(h[C.imp.hoja].grid)){ const i=h.findIndex(x=>tieneDias(x.grid)); if(i>=0) C.imp.hoja=i; } leerImportado(); } render();}
+  else if(false){C.imp=Object.assign(nuevoImp(),{modo:a.dataset.v,texto:(C.imp&&C.imp.texto)||'',arch:(C.imp&&C.imp.arch)||null,hoja:(C.imp&&C.imp.hoja)||0}); if(C.imp.arch){ const h=C.imp.arch.hojas; if(!tieneDias(h[C.imp.hoja].grid)){ const i=h.findIndex(x=>tieneDias(x.grid)); if(i>=0) C.imp.hoja=i; } leerImportado(); } render();}
   else if(act==='impleer'){leerImportado(); render(); const p=document.querySelector('.preview'); if(p) p.scrollIntoView({block:'center'});}
   else if(act==='impborrar'){C.imp=Object.assign(nuevoImp(),{modo:C.imp.modo}); render();}
   else if(act==='impaplicar'){aplicarImportado();}
+  else if(act==='lotaplicar'){aplicarLote();}
 });
 app.addEventListener('input',e=>{
   const t=e.target;
@@ -2472,7 +2591,7 @@ app.addEventListener('change',e=>{
   else if(t.dataset&&t.dataset.act==='egcurso'){const id=t.dataset.id; C.eg.cursos=t.checked?uniq(C.eg.cursos.concat(id)):C.eg.cursos.filter(x=>x!==id);}
   else if(t.dataset&&t.dataset.act==='egar'){const p=C.eg.p.find(x=>x.id===t.dataset.id); if(p){p.ar=t.checked;C.eg.pTocado=true;}}
   else if(t.dataset&&t.dataset.act==='egslot'){const s=C.eg.slots[+t.dataset.i]; if(s) s[t.dataset.k]=t.value;}
-  else if(t.id==='imp-file'&&C.imp){ if(t.files&&t.files[0]) cargarArchivo(t.files[0]); }
+  else if(t.id==='imp-file'&&C.imp){ if(t.files&&t.files.length>1&&C.imp.modo==='persona') cargarLote(Array.from(t.files)); else if(t.files&&t.files[0]) cargarArchivo(t.files[0]); }
   else if(t.id==='imp-hoja'&&C.imp){C.imp.hoja=+t.value; C.imp.pidx=0; leerImportado(); render();}
   else if(t.id==='imp-panel'&&C.imp){C.imp.pidx=+t.value; leerImportado(); render();}
   else if(t.id==='imp-cid'&&C.imp){C.imp.cid=t.value;}
@@ -2481,6 +2600,10 @@ app.addEventListener('change',e=>{
   else if(t.dataset&&t.dataset.act==='impel'){C.imp.el[t.dataset.k].acc=t.value; render();}
   else if(t.dataset&&t.dataset.act==='impelcurso'){const d=C.imp.el[t.dataset.k]; d.cursos=t.checked?uniq((d.cursos||[]).concat(t.dataset.id)):(d.cursos||[]).filter(x=>x!==t.dataset.id); render();}
   else if(t.dataset&&t.dataset.act==='impopt'){C.imp.opts[t.dataset.k]=t.checked; render();}
+  else if(t.dataset&&t.dataset.act==='loteopt'){C.imp.lote.opts[t.dataset.k]=t.checked; render();}
+  else if(t.dataset&&t.dataset.act==='loteinc'){const it=C.imp.lote.items[+t.dataset.i]; it.inc=t.checked; it.manualInc=true; render();}
+  else if(t.dataset&&t.dataset.act==='lotehoja'){const it=C.imp.lote.items[+t.dataset.i]; it.sel=+t.value; it.manual=true; analizarItem(it,indicePersonas()); render();}
+  else if(t.dataset&&t.dataset.act==='lotepid'){const it=C.imp.lote.items[+t.dataset.i]; it.pid=t.value; it.manual=false; if(t.value){it.inc=true;it.manualInc=true;} analizarItem(it,indicePersonas()); render();}
 });
 app.addEventListener('submit',e=>{
   const f=e.target.closest('form'); if(!f) return; e.preventDefault();
