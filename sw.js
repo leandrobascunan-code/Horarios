@@ -1,9 +1,9 @@
 /* Service worker: deja la app instalable y abre rápido.
    Archivos propios: primero la red (para ver cambios) y, sin internet, la copia guardada.
    Para forzar actualización en todos los equipos, cambie el número de VERSION. */
-const VERSION = 'horarios-v3';
+const VERSION = 'horarios-v4';
 const ARCHIVOS = ['./', 'index.html', 'data.js', 'config.js', 'manifest.webmanifest',
-  'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
+  'icono-192.png', 'icono-512.png', 'icono-180.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(ARCHIVOS)).then(() => self.skipWaiting()));
