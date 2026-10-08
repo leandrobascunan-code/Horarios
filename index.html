@@ -2105,7 +2105,8 @@ async function entrar(clave){
   try{
     const j=await api({accion:'verificar',clave});
     if(j.ok){ S.auth={ok:true,clave}; guardaSS('hclave',clave); }
-    else S.authErr='La clave no es correcta.';
+    else if(j.error==='clave') S.authErr='La clave no es correcta.';
+    else S.authErr=(j.mensaje||('El servidor respondió con un error ('+(j.error||'desconocido')+').'));
   }catch(err){ S.authErr='No se pudo conectar con el servidor.'; }
   S.guardando=false; render();
 }
