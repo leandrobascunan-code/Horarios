@@ -188,6 +188,16 @@ svg.ic{width:1.1em;height:1.1em;flex:none;vertical-align:-.15em}
 .ev.k-ac{--st:var(--mat);--tt:var(--mat-t)}
 .ev.k-ar{--st:var(--pie);--tt:var(--pie-t)}
 .ev.k-taller,.ev.k-priorizados{--st:var(--ing);--tt:var(--ing-t)}
+.ev.k-colab{--st:#3f9a52;--tt:#e3f4e6}
+.ev.k-colacion{--st:#df7a1f;--tt:#fdecdc}
+.ev.k-prep{--st:#b48514;--tt:#faf1d6}
+.ev.k-reunion{--st:#c04a8a;--tt:#fae6f0}
+.ev.k-nolectivo{--st:#8a97a6;--tt:#eef1f5}
+.ev.k-traslado{--st:#64798d;--tt:#e9eff4}
+.ev.k-otro{--st:#9aabbb;--tt:#f1f4f8}
+.ev .pies{margin-top:2px}
+.ev .pie-chip{font-size:11px;padding:0 7px 0 6px}
+.otras-nota{margin-top:10px}
 .ev.k-soft{--st:#9aabbb;--tt:#f1f4f8;color:var(--ink-2)}
 .ev .lnk{font-weight:700}
 .kleg{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:12px;font-size:13.5px;color:var(--ink-2)}
@@ -385,7 +395,7 @@ const API_URL = (window.APP_CONFIG && window.APP_CONFIG.API_URL) || "";
 const app = document.getElementById('app');
 if(!window.HORARIOS){ app.innerHTML='<div class="layout one"><div class="panel"><h2>No se cargaron los datos</h2><p>Falta el archivo data.js junto a index.html.</p></div></div>'; return; }
 const clonar = o => JSON.parse(JSON.stringify(o));
-const VERSION_APP = 'v10';
+const VERSION_APP = 'v11';
 const BASE = clonar(window.HORARIOS);
 let D = clonar(BASE);
 
@@ -733,18 +743,38 @@ function stageDocente(){
     (j?'<span>Jefatura de '+j.map(x=>'<button class="lnk" data-go="cursos" data-id="'+esc(x)+'">'+esc(cname(x))+'</button>').join(' y ')+'</span>':'')+
     '<span>'+n+' bloques por semana en '+cursos.length+(cursos.length===1?' curso':' cursos')+(conPie?'. '+conPie+' con apoyo PIE':'')+'</span></p></div>'+
     '<div class="btns"><button class="btn sig" data-go="permisos" data-id="'+esc(p.id)+'">Consultar permiso</button><button class="btn wa" data-act="compartir" data-tipo="docente" data-id="'+esc(p.id)+'">'+ICON.wa+' Enviar por WhatsApp</button><button class="btn" data-act="pdf" data-tipo="docente" data-id="'+esc(p.id)+'">'+ICON.pdf+' Descargar PDF</button><button class="btn" data-act="print">'+ICON.print+' Imprimir</button></div>'+
-    '<div class="btns"><button class="btn" data-act="editdoc" data-id="'+esc(p.id)+'">Editar o agregar un bloque</button><button class="btn" data-act="xlsdoc">Cargar horario desde Excel</button></div></div>'+
-    (n?gridPersona(w,'doc')+legend(DIAS.some(d=>w[d].some(s=>s.nota==='cambio')),DIAS.some(d=>w[d].some(s=>s.el))):'<div class="panel">Este docente no tiene bloques de clase en el horario.</div>')+otrasHoras(p);
+    (S.auth.ok&&API_URL?'<div class="btns"><button class="btn" data-act="editdoc" data-id="'+esc(p.id)+'">Editar horario de este docente</button></div>':'')+'</div>'+
+    (n||eventosDoc(p).length?calendario(eventosDoc(p),{K:1.75,sinLeyenda:true})+leyendaEv(eventosDoc(p))+legend(DIAS.some(d=>w[d].some(s=>s.nota==='cambio')),DIAS.some(d=>w[d].some(s=>s.el)))+(eventosDoc(p).some(e=>e.t!=='clase')?'<p class="help otras-nota">Las horas de preparación, reuniones, colación y otras actividades no se consideran para cubrir permisos: sirven solo para saber en qué está el docente.</p>':''):'<div class="panel">Este docente no tiene horas en el horario.</div>');
 }
 
-function otrasHoras(p){
-  const ev=eventosPro(p.horario).filter(e=>OTRAS_ET.indexOf(e.t)>=0);
-  if(!ev.length) return '<div class="panel otras"><h3>Otras horas de la semana</h3><p class="help">Aún no hay horas de preparación, colaboración, reuniones u otras actividades registradas para este docente. Use «Editar o agregar un bloque» o «Cargar horario desde Excel» para agregarlas. No se consideran para cubrir permisos.</p></div>';
-  return '<div class="panel otras"><h3>Otras horas de la semana</h3><p class="help">Preparación, reuniones, colación y otras actividades. Estas horas no se consideran para cubrir permisos: sirven solo para saber en qué está el docente.</p>'+calendario(ev,{sinDias:true,sinLeyenda:true})+'</div>';
+function sigSlot(s){return [s.cid,s.a,s.det||'',(s.co||[]).join(','),(s.docs||[]).join(','),(s.pie||[]).map(q=>q.id+(q.ar?'*':'')).join(','),s.ar?1:0,s.nota||''].join('~');}
+function eventosDoc(p){
+  const w=TS[p.id]||emptyWeek(); const out=[];
+  DIAS.forEach(d=>{
+    const l=w[d].slice().sort((a,b)=>mins(a.ini)-mins(b.ini)||mins(a.fin)-mins(b.fin)); const dia=[];
+    l.forEach(s=>{
+      const sg=sigSlot(s), u=dia[dia.length-1];
+      if(u&&u.sig===sg&&u.fin===s.ini){u.fin=s.fin;} else dia.push({d,ini:s.ini,fin:s.fin,t:'clase',s,sig:sg});
+    });
+    dia.forEach(e=>out.push(e));
+  });
+  return out.concat(eventosPro(p.horario).filter(e=>OTRAS_ET.indexOf(e.t)>=0));
+}
+const EVCOL={AC:['#2f72c4','#e3eefb'],AR:['#0a7d8c','#d9f1f4'],taller:['#7b57c0','#eee8f9'],priorizados:['#7b57c0','#eee8f9'],colab:['#3f9a52','#e3f4e6'],colacion:['#df7a1f','#fdecdc'],prep:['#b48514','#faf1d6'],reunion:['#c04a8a','#fae6f0'],nolectivo:['#8a97a6','#eef1f5'],traslado:['#64798d','#e9eff4'],otro:['#9aabbb','#f1f4f8']};
+function itemsLeyenda(evs){
+  const orden=['AC','AR','taller','priorizados','prep','colab','reunion','colacion','traslado','nolectivo','otro'];
+  const hay=new Set(evs.map(e=>e.t));
+  const out=[]; if(hay.has('clase')) out.push(['#10243f','Clase (el color de la tarjeta indica la asignatura)']);
+  orden.forEach(t=>{ if(hay.has(t)) out.push([EVCOL[t][0],TIPO_N[t]]); });
+  return out;
+}
+function leyendaEv(evs){
+  const it=itemsLeyenda(evs); if(!it.length) return '';
+  return '<div class="kleg">'+it.map(x=>'<span><i style="background:'+x[0]+'"></i>'+esc(x[1])+'</span>').join('')+'</div>';
 }
 const OTRAS_ET=['prep','reunion','colab','colacion','taller','traslado','otro','nolectivo'];
 /* calendario (profesionales PIE) */
-const TIPO_N={AC:'Aula común',AR:'Aula de recursos',taller:'Taller',priorizados:'Estudiantes priorizados',colab:'Trabajo colaborativo',colacion:'Colación',nolectivo:'No lectivo',prep:'Preparación',reunion:'Reunión',traslado:'Traslado',otro:'Otra actividad'};
+const TIPO_N={clase:'Clase',AC:'Aula común',AR:'Aula de recursos',taller:'Taller',priorizados:'Estudiantes priorizados',colab:'Trabajo colaborativo',colacion:'Colación',nolectivo:'No lectivo',prep:'Preparación',reunion:'Reunión',traslado:'Traslado',otro:'Otra actividad'};
 const TIPO_SOFT={colab:1,colacion:1,nolectivo:1,prep:1,reunion:1,traslado:1,otro:1};
 const rotuloEv=e=>e.det||TIPO_N[e.t];
 function eventosPro(h){return (h||[]).filter(e=>TIPO_N[e.t]);}
@@ -767,14 +797,22 @@ function calendario(horario,op){
   const evs=eventosPro(horario);
   if(!evs.length) return '<div class="panel">No hay atenciones cargadas en el horario.</div>';
   const t0=Math.floor(Math.min.apply(null,evs.map(e=>mins(e.ini)))/60)*60, t1=Math.ceil(Math.max.apply(null,evs.map(e=>mins(e.fin)))/60)*60;
-  const K=1.3, alto=(t1-t0)*K, hh=60*K;
+  const K=op.K||1.3, alto=(t1-t0)*K, hh=60*K;
   let axis='<div class="cal-axis" style="height:'+alto+'px">'; for(let m=t0;m<=t1;m+=60) axis+='<span style="top:'+((m-t0)*K)+'px">'+hhmm(m)+'</span>'; axis+='</div>';
   let h='<div class="cal-wrap"><div class="cal" data-dia="'+S.dia+'"><div></div>'+DIAS.map(d=>'<div class="cal-h'+(d===HOY?' hoy':'')+'" data-d="'+d+'">'+DIA_N[d]+'</div>').join('')+axis;
   DIAS.forEach(d=>{
     const ev=lanes(evs.filter(e=>e.d===d));
     h+='<div class="cal-col" data-d="'+d+'" style="height:'+alto+'px;--hh:'+hh+'px">'+ev.map(x=>{
       const e=x.e, top=(mins(e.ini)-t0)*K, ht=Math.max(22,(mins(e.fin)-mins(e.ini))*K-2), w=100/x.n, l=x.lane*w;
-      const soft=TIPO_SOFT[e.t]; const cls='ev '+(soft?'k-soft':'k-'+e.t.toLowerCase());
+      const soft=TIPO_SOFT[e.t];
+      if(e.t==='clase'){
+        const q=e.s, k=subjKey(q.a);
+        const nom=q.el?'<button class="lnk" data-go="electivos" data-id="'+esc(q.el)+'">'+esc(cname(q.cid))+'</button>':'<button class="lnk" data-go="cursos" data-id="'+esc(q.cid)+'">'+esc(cname(q.cid))+'</button>';
+        const sub=q.el?cursosTxt(q.cursos):(q.det?q.a+': '+q.det:q.a);
+        const tit=cname(q.cid)+' · '+sub+' · '+e.ini+' a '+e.fin+((q.pie||[]).length?'. PIE: '+q.pie.map(z=>shortP(z.id)+(z.ar?' (AR)':'')).join(', '):'');
+        return '<div class="ev s-'+k+'" title="'+esc(tit)+'" style="top:'+top+'px;height:'+ht+'px;left:calc('+l+'% + 1px);width:calc('+w+'% - 3px)"><small>'+esc(e.ini+' a '+e.fin)+'</small><b>'+nom+'</b><small>'+esc(sub)+'</small>'+((q.co||[]).length?'<small>Con '+esc(q.co.map(shortD).join(' / '))+'</small>':'')+pieChips(q.pie,{nodata:q.nota==='cambio'})+'</div>';
+      }
+      const cls='ev k-'+e.t.toLowerCase();
       const cs=(e.cs||[]).map(c=>'<button class="lnk" data-go="cursos" data-id="'+esc(c)+'">'+esc(cname(c))+'</button>').join(', ');
       const det=[e.a,e.s].filter(Boolean).join(' · ');
       const tit=TIPO_N[e.t]+' '+e.ini+' a '+e.fin+((e.cs||[]).length?'. '+e.cs.map(cname).join(', '):'')+(det?'. '+det:'');
@@ -782,8 +820,7 @@ function calendario(horario,op){
         (soft?'<b>'+esc(rotuloEv(e))+'</b><small>'+esc(e.ini+' a '+e.fin)+'</small>':'<small>'+esc(TIPO_N[e.t])+' · '+esc(e.ini)+'</small><b>'+(cs||esc(e.det||e.a||'Sin curso indicado'))+'</b>'+(det&&cs?'<small>'+esc(det)+'</small>':''))+'</div>';
     }).join('')+'</div>';
   });
-  return (op.sinDias?'':dayPills())+h+'</div></div>'+(op.sinLeyenda?'':
-    '<div class="kleg"><span><i style="background:var(--mat)"></i>Aula común: acompaña dentro de la sala</span><span><i style="background:var(--pie)"></i>Aula de recursos: atiende fuera del aula</span><span><i style="background:var(--ing)"></i>Talleres y estudiantes priorizados</span><span><i style="background:#9aabbb"></i>Colación, trabajo colaborativo y otros</span></div>');
+  return (op.sinDias?'':dayPills())+h+'</div></div>'+(op.sinLeyenda?'':leyendaEv(evs));
 }
 function resumenCursosPro(h){
   const m={}; eventosPro(h).filter(e=>e.t==='AC'||e.t==='AR').forEach(e=>(e.cs||[]).forEach(c=>{const o=m[c]=m[c]||{ac:0,ar:0}; const dur=(mins(e.fin)-mins(e.ini))/45; if(e.t==='AC')o.ac+=dur; else o.ar+=dur;}));
@@ -1369,10 +1406,10 @@ function bGrilla(ctx,y,dib,filas,hoyIdx){
   });
   return yy+6;
 }
-function bCalendario(ctx,y,dib,evs,hoyIdx){
+function bCalendario(ctx,y,dib,evs,hoyIdx,Kp){
   const x0=IMG_M, wT=60, gap=6, wD=(IMG_W-2*IMG_M-wT-gap*5)/5;
   const t0=Math.floor(Math.min.apply(null,evs.map(e=>mins(e.ini)))/60)*60, t1=Math.ceil(Math.max.apply(null,evs.map(e=>mins(e.fin)))/60)*60;
-  const K=1.55, hh=38;
+  const K=Kp||1.55, hh=38;
   if(dib){
     DIAS.forEach((d,i)=>{const x=x0+wT+gap+i*(wD+gap); rr(ctx,x,y,wD,hh,10); ctx.fillStyle=(i===hoyIdx)?'#0c2d5a':'#eef3f9'; ctx.fill(); ctx.fillStyle=(i===hoyIdx)?'#fff':'#0c2d5a'; ctx.font='800 19px '+FONT; ctx.fillText(DIA_N[d],x+12,y+25);});
     const top=y+hh+gap;
@@ -1381,17 +1418,30 @@ function bCalendario(ctx,y,dib,evs,hoyIdx){
       const x=x0+wT+gap+i*(wD+gap);
       lanes(evs.filter(e=>e.d===d)).forEach(z=>{
         const e=z.e, ey=top+(mins(e.ini)-t0)*K, eh=Math.max(24,(mins(e.fin)-mins(e.ini))*K-3), ew=wD/z.n, ex=x+z.lane*ew;
-        const soft=TIPO_SOFT[e.t]; const col=soft?['#9aabbb','#f1f4f8']:e.t==='AR'?PAL.pie:(e.t==='taller'||e.t==='priorizados')?PAL.ing:PAL.mat;
+        const soft=TIPO_SOFT[e.t]; let col,partes;
+        if(e.t==='clase'){
+          const q=e.s; col=PAL[q.el?'ele':subjKey(q.a)]||PAL.otr; const sub=q.el?cursosTxt(q.cursos):(q.det?q.a+': '+q.det:q.a);
+          partes=[[e.ini+' a '+e.fin,'500 12px '+FONT,'#52667f'],[cname(q.cid),'700 14px '+FONT,'#10243f'],[sub,'500 12.5px '+FONT,'#52667f']];
+          if((q.co||[]).length) partes.push(['Con '+q.co.map(shortD).join(' / '),'500 12px '+FONT,'#2c4258']);
+          if((q.pie||[]).length) partes.push(['PIE: '+q.pie.map(z=>shortP(z.id)+(z.ar?' (AR)':'')).join(', '),'600 12px '+FONT,'#064f5d']);
+        } else {
+          col=EVCOL[e.t]||EVCOL.otro;
+          partes=soft?[[rotuloEv(e),'700 13.5px '+FONT,'#52667f'],[e.ini+' a '+e.fin,'500 12px '+FONT,'#7b8da1']]:[[TIPO_N[e.t]+' · '+e.ini+' a '+e.fin,'500 12px '+FONT,'#52667f'],[(e.cs&&e.cs.length?e.cs.map(cname).join(', '):(e.det||e.a||'')),'700 14px '+FONT,'#10243f'],[[e.a,e.s].filter(Boolean).join(' · '),'500 12.5px '+FONT,'#52667f']];
+        }
         rr(ctx,ex+1,ey,ew-3,eh,9); ctx.fillStyle=col[1]; ctx.fill();
         ctx.save(); rr(ctx,ex+1,ey,ew-3,eh,9); ctx.clip(); ctx.fillStyle=col[0]; ctx.fillRect(ex+1,ey,5,eh);
         let ty=ey+16; const mw=ew-3-18;
-        const partes=soft?[[rotuloEv(e),'700 13.5px '+FONT,'#52667f'],[e.ini+' a '+e.fin,'500 12px '+FONT,'#7b8da1']]:[[TIPO_N[e.t]+' · '+e.ini+' a '+e.fin,'500 12px '+FONT,'#52667f'],[(e.cs&&e.cs.length?e.cs.map(cname).join(', '):(e.det||e.a||'')),'700 14px '+FONT,'#10243f'],[[e.a,e.s].filter(Boolean).join(' · '),'500 12.5px '+FONT,'#52667f']];
         partes.forEach(p=>{ if(!p[0]) return; ctx.font=p[1]; ctx.fillStyle=p[2]; envolver(ctx,p[0],mw).forEach(l=>{ if(ty<ey+eh+2) ctx.fillText(l,ex+12,ty); ty+=16; }); });
         ctx.restore();
       });
     });
   }
   return y+hh+gap+(t1-t0)*K+8;
+}
+function bLeyenda(ctx,y,dib,items){
+  ctx.font='500 15px '+FONT; let x=IMG_M, yy=y+8; const lh=26;
+  items.forEach(it=>{ const w=ctx.measureText(it[1]).width+30; if(x+w>IMG_W-IMG_M){x=IMG_M; yy+=lh;} if(dib){ctx.fillStyle=it[0]; rr(ctx,x,yy+2,13,13,4); ctx.fill(); ctx.fillStyle='#52667f'; ctx.fillText(it[1],x+20,yy+14);} x+=w+14; });
+  return yy+lh+10;
 }
 function bKV(ctx,y,dib,pares){
   let yy=y; const wK=190, wV=IMG_W-2*IMG_M-wK-24;
@@ -1483,7 +1533,8 @@ function especificacion(tipo,id){
     const p=DOC[id], w=TS[id]||emptyWeek(); const j=jefaturas[id];
     return {archivo:'horario-'+id,titulo:'Horario de '+p.nombre,texto:'Horario de '+p.nombre+' (Colegio Marina de Chile)',bloques:[
       ['t','Horario docente',p.nombre,[(p.dept?p.dept:''),(j?'Jefatura de '+j.map(cname).join(' y '):'')].filter(Boolean)],
-      ['g',filasSemana(w,'doc')]].concat((()=>{const ot=eventosPro(p.horario).filter(e=>OTRAS_ET.indexOf(e.t)>=0); return ot.length?[['s','Otras horas de la semana'],['c',ot],['n','Preparación, reuniones, colación y otras actividades. No se consideran para cubrir permisos.']]:[];})()).concat([['n','PIE: profesional que acompaña al docente en ese bloque. AR: atiende en Aula de Recursos.']])};
+      (eventosDoc(p).length?['c',eventosDoc(p),1.7]:['n','Este docente no tiene horas en el horario.']),['l',itemsLeyenda(eventosDoc(p))],
+      ['n','PIE: profesional que acompaña al docente en ese bloque. AR: atiende en Aula de Recursos.'+(eventosDoc(p).some(e=>e.t!=='clase')?' Las horas de preparación, reuniones, colación y otras actividades no se consideran para cubrir permisos.':'')]]};
   }
   if(tipo==='pie'){
     const p=PIE[id];
@@ -1491,7 +1542,7 @@ function especificacion(tipo,id){
       const evs=eventosPro(p.horario);
       return {archivo:'horario-'+id,titulo:'Horario de '+p.nombre,texto:'Horario de '+p.nombre+' (Colegio Marina de Chile)',bloques:[
         ['t',p.cargo||'Profesional PIE',p.nombre,['Atención en aula común y en aula de recursos']],(evs.length?['c',evs]:['n','Todavía no hay atenciones cargadas.']),
-        ['n','Azul: aula común. Verde azulado: aula de recursos. Violeta: talleres y estudiantes priorizados. Gris: colación, trabajo colaborativo y otros.']]};
+        ['l',itemsLeyenda(evs)]]};
     }
     const w=PS[id]||emptyWeek();
     return {archivo:'horario-'+id,titulo:'Horario de '+p.nombre,texto:'Horario de '+p.nombre+' (Colegio Marina de Chile)',bloques:[
@@ -1532,7 +1583,8 @@ async function generarImagen(tipo,id){
       const t=b[0];
       if(t==='t') y=bTitulo(ctx,y,dib,b[1],b[2],b[3]);
       else if(t==='g') y=bGrilla(ctx,y,dib,b[1],hoyI);
-      else if(t==='c') y=bCalendario(ctx,y,dib,b[1],hoyI);
+      else if(t==='c') y=bCalendario(ctx,y,dib,b[1],hoyI,b[2]);
+      else if(t==='l') y=bLeyenda(ctx,y,dib,b[1]);
       else if(t==='k') y=bKV(ctx,y,dib,b[1]);
       else if(t==='s') y=bSubtitulo(ctx,y+6,dib,b[1]);
       else if(t==='v') y=bCobertura(ctx,y,dib,b[1]);
@@ -2270,7 +2322,6 @@ app.addEventListener('click',e=>{
   else if(act==='rail'){S.railOpen=!S.railOpen; const r=document.querySelector('.rail'); r.classList.toggle('open',S.railOpen); a.setAttribute('aria-expanded',S.railOpen); a.lastChild.textContent=S.railOpen?'Cerrar lista':'Cambiar';}
   else if(act==='print'){window.print();}
   else if(act==='editdoc'){C.tipo='doc';C.q='';const p=D.docentes.find(x=>x.id===a.dataset.id);if(p){C.form={id:p.id,nombre:p.nombre,nombre0:p.nombre,abrev:p.abrev||'',dept:p.dept||'',cargo:p.cargo||'',err:''};}C.confirm=null;ir('config','personas');window.scrollTo({top:0});}
-  else if(act==='xlsdoc'){ir('config','importar');window.scrollTo({top:0});}
   else if(act==='compartir'){compartir(a.dataset.tipo,a.dataset.id);}
   else if(act==='pdf'){descargarPDF(a.dataset.tipo,a.dataset.id);}
   else if(act==='copiar'){copiar(textoResumen());}
