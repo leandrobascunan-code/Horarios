@@ -385,6 +385,7 @@ const API_URL = (window.APP_CONFIG && window.APP_CONFIG.API_URL) || "";
 const app = document.getElementById('app');
 if(!window.HORARIOS){ app.innerHTML='<div class="layout one"><div class="panel"><h2>No se cargaron los datos</h2><p>Falta el archivo data.js junto a index.html.</p></div></div>'; return; }
 const clonar = o => JSON.parse(JSON.stringify(o));
+const VERSION_APP = 'v10';
 const BASE = clonar(window.HORARIOS);
 let D = clonar(BASE);
 
@@ -495,7 +496,7 @@ construir();
 
 /* ---------- estado y enrutado ---------- */
 const TABS=[['cursos','Cursos'],['electivos','Electivos'],['docentes','Docentes'],['pie','Equipo PIE'],['permisos','Permisos y cobertura'],['config','Configuración']];
-const SUBS=[['horarios','Horarios'],['electivos','Electivos'],['personas','Personas'],['importar','Pegar desde Excel'],['datos','Datos y guardado']];
+const SUBS=[['horarios','Horarios'],['electivos','Electivos'],['personas','Personas'],['importar','Cargar desde Excel'],['datos','Datos y guardado']];
 const S={tab:'cursos',id:null,dia:null,q:'',ciclo:'',railOpen:false,desde:null,hasta:null,off:new Set(),
   cargando:false,errCarga:'',version:0,dirty:false,guardando:false,
   auth:{ok:!API_URL,clave:''},authErr:'',
@@ -731,13 +732,14 @@ function stageDocente(){
   return '<div class="stage-head"><div class="grow"><p class="kicker">'+esc(p.dept||'Docente')+'</p><h2>'+esc(p.nombre)+'</h2><p class="meta">'+
     (j?'<span>Jefatura de '+j.map(x=>'<button class="lnk" data-go="cursos" data-id="'+esc(x)+'">'+esc(cname(x))+'</button>').join(' y ')+'</span>':'')+
     '<span>'+n+' bloques por semana en '+cursos.length+(cursos.length===1?' curso':' cursos')+(conPie?'. '+conPie+' con apoyo PIE':'')+'</span></p></div>'+
-    '<div class="btns"><button class="btn sig" data-go="permisos" data-id="'+esc(p.id)+'">Consultar permiso</button><button class="btn wa" data-act="compartir" data-tipo="docente" data-id="'+esc(p.id)+'">'+ICON.wa+' Enviar por WhatsApp</button><button class="btn" data-act="pdf" data-tipo="docente" data-id="'+esc(p.id)+'">'+ICON.pdf+' Descargar PDF</button><button class="btn" data-act="print">'+ICON.print+' Imprimir</button></div></div>'+
+    '<div class="btns"><button class="btn sig" data-go="permisos" data-id="'+esc(p.id)+'">Consultar permiso</button><button class="btn wa" data-act="compartir" data-tipo="docente" data-id="'+esc(p.id)+'">'+ICON.wa+' Enviar por WhatsApp</button><button class="btn" data-act="pdf" data-tipo="docente" data-id="'+esc(p.id)+'">'+ICON.pdf+' Descargar PDF</button><button class="btn" data-act="print">'+ICON.print+' Imprimir</button></div>'+
+    '<div class="btns"><button class="btn" data-act="editdoc" data-id="'+esc(p.id)+'">Editar o agregar un bloque</button><button class="btn" data-act="xlsdoc">Cargar horario desde Excel</button></div></div>'+
     (n?gridPersona(w,'doc')+legend(DIAS.some(d=>w[d].some(s=>s.nota==='cambio')),DIAS.some(d=>w[d].some(s=>s.el))):'<div class="panel">Este docente no tiene bloques de clase en el horario.</div>')+otrasHoras(p);
 }
 
 function otrasHoras(p){
   const ev=eventosPro(p.horario).filter(e=>OTRAS_ET.indexOf(e.t)>=0);
-  if(!ev.length) return '';
+  if(!ev.length) return '<div class="panel otras"><h3>Otras horas de la semana</h3><p class="help">Aún no hay horas de preparación, colaboración, reuniones u otras actividades registradas para este docente. Use «Editar o agregar un bloque» o «Cargar horario desde Excel» para agregarlas. No se consideran para cubrir permisos.</p></div>';
   return '<div class="panel otras"><h3>Otras horas de la semana</h3><p class="help">Preparación, reuniones, colación y otras actividades. Estas horas no se consideran para cubrir permisos: sirven solo para saber en qué está el docente.</p>'+calendario(ev,{sinDias:true,sinLeyenda:true})+'</div>';
 }
 const OTRAS_ET=['prep','reunion','colab','colacion','taller','traslado','otro','nolectivo'];
@@ -1263,9 +1265,9 @@ async function cargarServidor(){
   if(!j||!j.ok) throw new Error('respuesta');
   S.version=j.version||0;
   const d=j.datos;
-  if(d&&d.cursos&&d.docentes&&d.pie&&d.estructura&&d.electivos){ D=d; D.meta=D.meta||clonar(BASE.meta); }
-  else D=clonar(BASE);
-  construir(); SNAP=JSON.stringify(D); S.dirty=false;
+  const rev=x=>(x&&x.meta&&+x.meta.rev)||0;
+  if(d&&d.cursos&&d.docentes&&d.pie&&d.estructura&&d.electivos&&rev(d)>=rev(BASE)){ D=d; D.meta=D.meta||clonar(BASE.meta); construir(); SNAP=JSON.stringify(D); S.dirty=false; }
+  else { D=clonar(BASE); construir(); SNAP=JSON.stringify(D); S.dirty=false; if(d&&d.cursos) S.dirty=true; }
 }
 
 /* ================== IMAGEN FORMAL (WhatsApp) ================== */
@@ -2233,7 +2235,7 @@ function render(){
   leerHash();
   document.getElementById('tabs').innerHTML=TABS.map(t=>'<a class="tab'+(t[0]==='permisos'?' cta':'')+'" href="#/'+t[0]+'" '+(S.tab===t[0]?'aria-current="page"':'')+'>'+t[1]+(t[0]==='config'&&S.dirty?' •':'')+'</a>').join('');
   document.getElementById('banner').innerHTML=S.errCarga?'<div class="banner" role="alert">'+esc(S.errCarga)+'</div>':'';
-  document.getElementById('foot').textContent='Datos generados el '+D.meta.generado+' a partir de los horarios, la distribución docente y los horarios de los profesionales PIE 2026.';
+  document.getElementById('foot').textContent='Versión '+VERSION_APP+'. Datos generados el '+D.meta.generado+' a partir de los horarios, la distribución docente y los horarios de los profesionales PIE 2026.';
   if(S.cargando){ app.innerHTML='<div class="layout one"><div class="panel vacio-msg"><h2>Cargando horarios</h2><p>Un momento.</p></div></div>'; return; }
   if(S.tab==='config'){
     document.title='Configuración - Horarios 2026 - Colegio Marina de Chile';
@@ -2267,6 +2269,8 @@ app.addEventListener('click',e=>{
   if(act==='dia'){S.dia=a.dataset.v; document.querySelectorAll('.sched,.cal').forEach(t=>t.dataset.dia=S.dia); document.querySelectorAll('.day-pills button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===S.dia));}
   else if(act==='rail'){S.railOpen=!S.railOpen; const r=document.querySelector('.rail'); r.classList.toggle('open',S.railOpen); a.setAttribute('aria-expanded',S.railOpen); a.lastChild.textContent=S.railOpen?'Cerrar lista':'Cambiar';}
   else if(act==='print'){window.print();}
+  else if(act==='editdoc'){C.tipo='doc';C.q='';const p=D.docentes.find(x=>x.id===a.dataset.id);if(p){C.form={id:p.id,nombre:p.nombre,nombre0:p.nombre,abrev:p.abrev||'',dept:p.dept||'',cargo:p.cargo||'',err:''};}C.confirm=null;ir('config','personas');window.scrollTo({top:0});}
+  else if(act==='xlsdoc'){ir('config','importar');window.scrollTo({top:0});}
   else if(act==='compartir'){compartir(a.dataset.tipo,a.dataset.id);}
   else if(act==='pdf'){descargarPDF(a.dataset.tipo,a.dataset.id);}
   else if(act==='copiar'){copiar(textoResumen());}
