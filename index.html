@@ -395,6 +395,7 @@ const leeSS=k=>{try{return sessionStorage.getItem(k);}catch(_){return null;}};
 const y_=arr=>arr.length<2?arr.join(''):arr.slice(0,-1).join(', ')+' y '+arr[arr.length-1];
 
 const ICON={
+  pdf:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>',
   wa:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 20.5l1.7-5.3A8.4 8.4 0 1 1 21 11.5z"/><path d="M9 8.5c.3 3 2.5 5.2 5.5 5.6l1.3-1.4-2-1-1 .7a4 4 0 0 1-1.7-1.7l.7-1-1-2z" fill="currentColor" stroke="none"/></svg>',
   print:'<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3h10v6M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><rect x="7" y="14" width="10" height="7" rx="1"/></svg>'
 };
@@ -560,7 +561,7 @@ const thDias=()=>DIAS.map(d=>'<th scope="col" data-d="'+d+'"'+(d===HOY?' class="
 function sinResultados(txt){return '<div class="empty-list">'+esc(txt)+'</div>';}
 function vacio(t,p){return '<div class="panel vacio-msg"><h2>'+esc(t)+'</h2><p>'+esc(p)+'</p></div>';}
 function btnsCompartir(tipo,id){
-  return '<div class="btns"><button class="btn wa" data-act="compartir" data-tipo="'+tipo+'" data-id="'+esc(id||'')+'">'+ICON.wa+' Enviar por WhatsApp</button><button class="btn" data-act="print">'+ICON.print+' Imprimir</button></div>';
+  return '<div class="btns"><button class="btn wa" data-act="compartir" data-tipo="'+tipo+'" data-id="'+esc(id||'')+'">'+ICON.wa+' Enviar por WhatsApp</button><button class="btn" data-act="pdf" data-tipo="'+tipo+'" data-id="'+esc(id||'')+'">'+ICON.pdf+' Descargar PDF</button><button class="btn" data-act="print">'+ICON.print+' Imprimir</button></div>';
 }
 
 /* ---------- vista: cursos ---------- */
@@ -705,7 +706,7 @@ function stageDocente(){
   return '<div class="stage-head"><div class="grow"><p class="kicker">'+esc(p.dept||'Docente')+'</p><h2>'+esc(p.nombre)+'</h2><p class="meta">'+
     (j?'<span>Jefatura de '+j.map(x=>'<button class="lnk" data-go="cursos" data-id="'+esc(x)+'">'+esc(cname(x))+'</button>').join(' y ')+'</span>':'')+
     '<span>'+n+' bloques por semana en '+cursos.length+(cursos.length===1?' curso':' cursos')+(conPie?'. '+conPie+' con apoyo PIE':'')+'</span></p></div>'+
-    '<div class="btns"><button class="btn sig" data-go="permisos" data-id="'+esc(p.id)+'">Consultar permiso</button><button class="btn wa" data-act="compartir" data-tipo="docente" data-id="'+esc(p.id)+'">'+ICON.wa+' Enviar por WhatsApp</button><button class="btn" data-act="print">'+ICON.print+' Imprimir</button></div></div>'+
+    '<div class="btns"><button class="btn sig" data-go="permisos" data-id="'+esc(p.id)+'">Consultar permiso</button><button class="btn wa" data-act="compartir" data-tipo="docente" data-id="'+esc(p.id)+'">'+ICON.wa+' Enviar por WhatsApp</button><button class="btn" data-act="pdf" data-tipo="docente" data-id="'+esc(p.id)+'">'+ICON.pdf+' Descargar PDF</button><button class="btn" data-act="print">'+ICON.print+' Imprimir</button></div></div>'+
     (n?gridPersona(w,'doc')+legend(DIAS.some(d=>w[d].some(s=>s.nota==='cambio')),DIAS.some(d=>w[d].some(s=>s.el))):'<div class="panel">Este docente no tiene bloques de clase en el horario.</div>');
 }
 
@@ -868,7 +869,7 @@ function resultadosPermiso(){
   if(!p) return '';
   const dias=diasHabiles(S.desde,S.hasta);
   if(!dias.length) return '<p class="note">Las fechas elegidas caen en fin de semana. Elija días de lunes a viernes.</p>';
-  return dias.map(f=>bloqueDia(p.id,f)).join('')+'<div class="tools"><button class="btn wa" data-act="compartir" data-tipo="permiso" data-id="'+esc(p.id)+'">'+ICON.wa+' Enviar por WhatsApp</button><button class="btn" data-act="copiar">Copiar resumen</button><button class="btn" data-act="print">'+ICON.print+' Imprimir</button></div>'+
+  return dias.map(f=>bloqueDia(p.id,f)).join('')+'<div class="tools"><button class="btn wa" data-act="compartir" data-tipo="permiso" data-id="'+esc(p.id)+'">'+ICON.wa+' Enviar por WhatsApp</button><button class="btn" data-act="pdf" data-tipo="permiso" data-id="'+esc(p.id)+'">'+ICON.pdf+' Descargar PDF</button><button class="btn" data-act="copiar">Copiar resumen</button><button class="btn" data-act="print">'+ICON.print+' Imprimir</button></div>'+
     '<p class="note">Solo aparecen los profesionales PIE (incluido el Aula de Recursos) que acompañan al docente en cada bloque según el horario. No se consideran quienes tienen horas libres o de colaboración. Desmarque los tramos que el permiso no incluye.</p>';
 }
 function railPermisos(){
@@ -1205,6 +1206,7 @@ async function cargarServidor(){
 const FONT='"Plus Jakarta Sans","Segoe UI",system-ui,-apple-system,sans-serif';
 const PAL={len:['#d2473b','#fde9e6'],mat:['#2f72c4','#e3eefb'],his:['#b48514','#faf1d6'],cie:['#3f9a52','#e3f4e6'],ing:['#7b57c0','#eee8f9'],edf:['#df7a1f','#fdecdc'],art:['#c04a8a','#fae6f0'],otr:['#64798d','#e9eff4'],ele:['#2b4fa3','#e4e9f8'],pie:['#0a7d8c','#d9f1f4']};
 const IMG_W=1240, IMG_M=44;
+let BRK=[];
 function envolver(ctx,texto,maxW){
   const out=[]; String(texto).split('\n').forEach(par=>{
     let cur=''; par.split(/\s+/).filter(Boolean).forEach(w=>{const t=cur?cur+' '+w:w; if(!cur||ctx.measureText(t).width<=maxW) cur=t; else{out.push(cur);cur=w;}}); if(cur) out.push(cur);
@@ -1271,7 +1273,7 @@ function bGrilla(ctx,y,dib,filas,hoyIdx){
         });
       });
     }
-    yy+=hFila+gap;
+    yy+=hFila+gap; BRK.push(yy);
   });
   return yy+6;
 }
@@ -1304,7 +1306,7 @@ function bKV(ctx,y,dib,pares){
   pares.forEach(p=>{
     ctx.font='500 20px '+FONT; const ls=envolver(ctx,p[1],wV); const h=Math.max(1,ls.length)*28+22;
     if(dib){rr(ctx,IMG_M,yy,IMG_W-2*IMG_M,h-8,12); ctx.fillStyle='#f4f8fc'; ctx.fill(); ctx.fillStyle='#1477c2'; ctx.font='700 19px '+FONT; ctx.fillText(p[0],IMG_M+16,yy+(h-8)/2+7); ctx.fillStyle='#10243f'; ctx.font='500 20px '+FONT; ls.forEach((l,i)=>ctx.fillText(l,IMG_M+wK+16,yy+30+i*28));}
-    yy+=h;
+    yy+=h; BRK.push(yy);
   });
   return yy+4;
 }
@@ -1322,7 +1324,7 @@ function bCobertura(ctx,y,dib,filas){
       let ty=yy+34; ctx.fillStyle='#10243f'; ctx.font='700 21px '+FONT; q.forEach(l=>{ctx.fillText(l,IMG_M+wH,ty);ty+=27;}); ctx.fillStyle='#52667f'; ctx.font='500 17px '+FONT; q2.forEach(l=>{ctx.fillText(l,IMG_M+wH,ty);ty+=22;});
       ty=yy+34; ctx.fillStyle=f.ok?'#064f5d':'#8f251c'; ctx.font='700 19px '+FONT; c.forEach(l=>{ctx.fillText(l,IMG_M+wH+wQ+30,ty);ty+=26;});
     }
-    yy+=h+10;
+    yy+=h+10; BRK.push(yy);
   });
   return yy;
 }
@@ -1432,7 +1434,7 @@ async function generarImagen(tipo,id){
   const logo=await cargarLogo();
   const hoyI=HOY?DIAS.indexOf(HOY):-1;
   const pasar=(ctx,dib)=>{
-    let y=bEncabezado(ctx,0,dib,logo);
+    BRK=[]; let y=bEncabezado(ctx,0,dib,logo); BRK.push(y);
     spec.bloques.forEach(b=>{
       if(typeof b==='function') b=b();
       const t=b[0];
@@ -1443,6 +1445,7 @@ async function generarImagen(tipo,id){
       else if(t==='s') y=bSubtitulo(ctx,y+6,dib,b[1]);
       else if(t==='v') y=bCobertura(ctx,y,dib,b[1]);
       else if(t==='n') y=bNota(ctx,y+4,dib,b[1]);
+      BRK.push(y);
     });
     return bPie(ctx,y+10,dib);
   };
@@ -1453,7 +1456,74 @@ async function generarImagen(tipo,id){
   const ctx=cv.getContext('2d'); ctx.scale(esc2,esc2); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,IMG_W,H); ctx.textBaseline='alphabetic';
   pasar(ctx,true);
   const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
-  return {blob,spec};
+  return {blob,spec,cv,H,brk:BRK.slice(),logo};
+}
+
+/* ===== PDF formal (A4, sin librerías externas) ===== */
+function aBytes(str){const u=new Uint8Array(str.length); for(let i=0;i<str.length;i++) u[i]=str.charCodeAt(i)&255; return u;}
+function hex16(t){let h='FEFF'; for(let i=0;i<t.length;i++) h+=t.charCodeAt(i).toString(16).padStart(4,'0'); return '<'+h+'>';}
+function armarPDF(paginas,titulo){
+  // paginas: [{jpg:Uint8Array,w,h}]
+  const PW=595.28, PH=841.89, partes=[]; let largo=0; const offs=[];
+  const put=d=>{const u=typeof d==='string'?aBytes(d):d; partes.push(u); largo+=u.length;};
+  const obj=(n,cabeza,cuerpo)=>{offs[n]=largo; put(n+' 0 obj\n'+cabeza+'\n'); if(cuerpo){put('stream\n'); put(cuerpo); put('\nendstream\n');} put('endobj\n');};
+  const N=paginas.length; put('%PDF-1.4\n%\xE2\xE3\xCF\xD3\n');
+  obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
+  obj(2,'<< /Type /Pages /Kids ['+paginas.map((_,i)=>(5+i*3)+' 0 R').join(' ')+'] /Count '+N+' >>');
+  obj(3,'<< /Title '+hex16(titulo)+' /Author '+hex16('Colegio Marina de Chile')+' /Creator '+hex16('Horarios Marina')+' >>');
+  paginas.forEach((pg,i)=>{
+    const base=5+i*3, im='Im'+i, cont='q '+PW.toFixed(2)+' 0 0 '+PH.toFixed(2)+' 0 0 cm /'+im+' Do Q';
+    obj(base,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+PW+' '+PH+'] /Resources << /XObject << /'+im+' '+(base+1)+' 0 R >> >> /Contents '+(base+2)+' 0 R >>');
+    obj(base+1,'<< /Type /XObject /Subtype /Image /Width '+pg.w+' /Height '+pg.h+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+pg.jpg.length+' >>',pg.jpg);
+    obj(base+2,'<< /Length '+cont.length+' >>',aBytes(cont));
+  });
+  const total=5+N*3, xref=largo;
+  let x='xref\n0 '+total+'\n0000000000 65535 f \n';
+  for(let n=1;n<total;n++){ x+=n===4?'0000000000 65535 f \n':String(offs[n]||0).padStart(10,'0')+' 00000 n \n'; }
+  put(x+'trailer\n<< /Size '+total+' /Root 1 0 R /Info 3 0 R >>\nstartxref\n'+xref+'\n%%EOF');
+  return new Blob(partes,{type:'application/pdf'});
+}
+async function generarPDF(tipo,id){
+  const r=await generarImagen(tipo,id); if(!r) return null;
+  const E=2, PWu=IMG_W, PHu=Math.round(IMG_W*841.89/595.28), PIE=46, CONT=78;
+  const util1=PHu-PIE, utilN=PHu-PIE-CONT;
+  // cortes sin partir filas
+  const cortes=[]; let ini=0; const ajuste=(r.H>util1&&r.H<=util1*1.16)?util1/r.H:1;
+  while(ini<r.H-1){
+    const util=ini===0?util1:utilN; const lim=ini+util;
+    if(r.H<=lim+0.5||ajuste<1){cortes.push([ini,r.H]); break;}
+    let fin=0; r.brk.forEach(b=>{ if(b>ini+util*0.45&&b<=lim&&b>fin) fin=b; });
+    if(!fin) fin=lim; cortes.push([ini,fin]); ini=fin;
+  }
+  const pags=[], n=cortes.length;
+  for(let i=0;i<n;i++){
+    const [a,b]=cortes[i], cv=document.createElement('canvas'); cv.width=PWu*E; cv.height=PHu*E;
+    const c=cv.getContext('2d'); c.scale(E,E); c.fillStyle='#fff'; c.fillRect(0,0,PWu,PHu); c.textBaseline='alphabetic';
+    let top=0;
+    if(i>0){
+      const g=c.createLinearGradient(0,0,PWu,0); g.addColorStop(0,'#0c2d5a'); g.addColorStop(.6,'#123f7a'); g.addColorStop(1,'#1477c2'); c.fillStyle=g; c.fillRect(0,0,PWu,CONT-8);
+      c.fillStyle='#e3a72a'; c.fillRect(0,CONT-8,PWu,4);
+      if(r.logo){ c.save(); c.beginPath(); c.arc(IMG_M+27,(CONT-8)/2,27,0,Math.PI*2); c.clip(); c.drawImage(r.logo,IMG_M,(CONT-8)/2-27,54,54); c.restore(); }
+      c.fillStyle='#fff'; c.font='800 22px '+FONT; c.fillText('Colegio Marina de Chile',IMG_M+72,(CONT-8)/2-2);
+      c.fillStyle='#c6dcf2'; c.font='500 17px '+FONT; const tt=r.spec.titulo+' (continuación)'; c.fillText(tt.length>85?tt.slice(0,84)+'…':tt,IMG_M+72,(CONT-8)/2+22);
+      top=CONT;
+    }
+    if(ajuste<1){ const w2=PWu*ajuste; c.drawImage(r.cv,0,0,PWu*E,r.H*E,(PWu-w2)/2,0,w2,r.H*ajuste); }
+    else c.drawImage(r.cv,0,a*E,PWu*E,(b-a)*E,0,top,PWu,b-a);
+    c.fillStyle='#8696a8'; c.font='500 15px '+FONT; c.textAlign='right'; c.fillText('Página '+(i+1)+' de '+n,PWu-IMG_M,PHu-16); c.textAlign='left';
+    const blob=await new Promise(res=>cv.toBlob(res,'image/jpeg',0.93));
+    pags.push({jpg:new Uint8Array(await blob.arrayBuffer()),w:cv.width,h:cv.height});
+  }
+  return {blob:armarPDF(pags,r.spec.titulo),spec:r.spec,paginas:n};
+}
+async function descargarPDF(tipo,id){
+  aviso('Preparando el PDF',1800);
+  let r=null; try{ r=await generarPDF(tipo,id); }catch(err){ console.error(err); }
+  if(!r){ aviso('No se pudo crear el PDF',4000); return; }
+  const url=URL.createObjectURL(r.blob), nombre=r.spec.archivo.replace(/[^\w.-]+/g,'-').toLowerCase()+'.pdf';
+  const a=document.createElement('a'); a.href=url; a.download=nombre; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+  aviso('PDF descargado ('+r.paginas+(r.paginas===1?' página':' páginas')+')',3500);
 }
 const dlg2=document.getElementById('dlg2');
 let IMG=null;
@@ -1462,10 +1532,10 @@ async function compartir(tipo,id){
   let r=null; try{ r=await generarImagen(tipo,id); }catch(err){ console.error(err); }
   if(!r){ aviso('No se pudo crear la imagen',4000); return; }
   if(IMG&&IMG.url) URL.revokeObjectURL(IMG.url);
-  IMG={blob:r.blob,spec:r.spec,url:URL.createObjectURL(r.blob),nombre:r.spec.archivo.replace(/[^\w.-]+/g,'-').toLowerCase()+'.png'};
+  IMG={tipo,id,blob:r.blob,spec:r.spec,url:URL.createObjectURL(r.blob),nombre:r.spec.archivo.replace(/[^\w.-]+/g,'-').toLowerCase()+'.png'};
   const puedeCopiar=!!(navigator.clipboard&&window.ClipboardItem&&window.isSecureContext);
   dlg2.innerHTML='<div class="dlg-in"><h2>Imagen lista para enviar</h2><p class="sub">'+esc(r.spec.titulo)+'</p><img class="share-img" src="'+IMG.url+'" alt="Vista previa: '+esc(r.spec.titulo)+'">'+
-    '<div class="dlg-act"><button class="btn wa" data-iact="wa">'+ICON.wa+' Enviar por WhatsApp</button>'+(puedeCopiar?'<button class="btn" data-iact="copiar">Copiar imagen</button>':'')+'<button class="btn" data-iact="bajar">Descargar</button><button class="btn ghost" data-iact="cerrar">Cerrar</button></div>'+
+    '<div class="dlg-act"><button class="btn wa" data-iact="wa">'+ICON.wa+' Enviar por WhatsApp</button>'+(puedeCopiar?'<button class="btn" data-iact="copiar">Copiar imagen</button>':'')+'<button class="btn" data-iact="bajar">Descargar imagen</button><button class="btn" data-iact="pdf">Descargar PDF</button><button class="btn ghost" data-iact="cerrar">Cerrar</button></div>'+
     '<p class="note">En el teléfono se abre la lista de aplicaciones para elegir WhatsApp. En el computador, descargue la imagen o cópiela y péguela en WhatsApp Web.</p></div>';
   dlg2.classList.add('wide'); if(!dlg2.open) dlg2.showModal();
 }
@@ -1473,6 +1543,7 @@ dlg2.addEventListener('click',async e=>{
   const b=e.target.closest('[data-iact]'); if(!b||!IMG) return; const a=b.dataset.iact;
   if(a==='cerrar'){dlg2.close();return;}
   if(a==='bajar'){bajarImg();return;}
+  if(a==='pdf'){descargarPDF(IMG.tipo,IMG.id);return;}
   if(a==='copiar'){try{await navigator.clipboard.write([new ClipboardItem({'image/png':IMG.blob})]); aviso('Imagen copiada. Péguela en el chat.');}catch(_){aviso('No se pudo copiar. Use Descargar.',3500);} return;}
   if(a==='wa'){
     const file=new File([IMG.blob],IMG.nombre,{type:'image/png'});
@@ -1922,6 +1993,7 @@ app.addEventListener('click',e=>{
   else if(act==='rail'){S.railOpen=!S.railOpen; const r=document.querySelector('.rail'); r.classList.toggle('open',S.railOpen); a.setAttribute('aria-expanded',S.railOpen); a.lastChild.textContent=S.railOpen?'Cerrar lista':'Cambiar';}
   else if(act==='print'){window.print();}
   else if(act==='compartir'){compartir(a.dataset.tipo,a.dataset.id);}
+  else if(act==='pdf'){descargarPDF(a.dataset.tipo,a.dataset.id);}
   else if(act==='copiar'){copiar(textoResumen());}
   else if(act==='celda'){abrirCelda(+a.dataset.b,a.dataset.dia);}
   else if(act==='celdael'){aviso('Los electivos se editan en la sección Electivos.',3500);}
