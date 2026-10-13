@@ -195,6 +195,8 @@ svg.ic{width:1.1em;height:1.1em;flex:none;vertical-align:-.15em}
 .ev.k-ar{--st:var(--pie);--tt:var(--pie-t)}
 .ev.k-taller,.ev.k-priorizados{--st:var(--ing);--tt:var(--ing-t)}
 .ev.k-colab{--st:#3f9a52;--tt:#e3f4e6}
+.ev.k-colabpie{--st:#00a8d6;--tt:#dff4fb}
+.ev.k-colabpie .ic{color:#0089b0}
 .ev.k-colacion{--st:#df7a1f;--tt:#fdecdc}
 .ev.k-prep{--st:#b48514;--tt:#faf1d6}
 .ev.k-reunion{--st:#c04a8a;--tt:#fae6f0}
@@ -430,7 +432,7 @@ dialog::backdrop{background:rgba(12,45,90,.6)}
 .cal-h .jor{display:flex;flex-direction:column;gap:3px;margin-top:2px}
 .cal-h .jp{display:inline-flex;align-items:center;gap:5px;font:600 12px var(--fb,inherit);border-radius:999px;padding:2px 9px 2px 6px;width:max-content;white-space:nowrap}
 .cal-h .jp b{font-weight:800}
-.cal-h .jp .ic{width:14px;height:14px}
+.cal-h .jp .ic{width:20px;height:20px;margin:-3px 0 -3px -2px}
 .cal-h .jp.in{background:#d6f5e0;color:#0d6b33}
 .cal-h .jp.out{background:#ffe0dd;color:#a1241b}
 .cal-h.hoy .jp.in{background:#2ecc71;color:#05341a}
@@ -470,7 +472,7 @@ const API_URL = (window.APP_CONFIG && window.APP_CONFIG.API_URL) || "";
 const app = document.getElementById('app');
 if(!window.HORARIOS){ app.innerHTML='<div class="layout one"><div class="panel"><h2>No se cargaron los datos</h2><p>Falta el archivo data.js junto a index.html.</p></div></div>'; return; }
 const clonar = o => JSON.parse(JSON.stringify(o));
-const VERSION_APP = 'v20';
+const VERSION_APP = 'v21';
 const BASE = clonar(window.HORARIOS);
 let D = clonar(BASE);
 
@@ -511,6 +513,10 @@ const ICONOS={
   traslado:'M4 12h15M13 6l6 6-6 6',
   nolectivo:'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM4.9 4.9l14.2 14.2',
   otro:'M5 12h.01M12 12h.01M19 12h.01',
+  entradaH:'M5 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM5 8v6M2 10.5h5M5 14l-2 6M5 14l2 6M11 12h7M15 9l3 3-3 3M21.5 3v18',
+  entradaM:'M5 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM5 8l-3.2 8.5h6.4zM3 16.5v3.5M6 16.5v3.5M11 12h7M15 9l3 3-3 3M21.5 3v18',
+  salidaH:'M19 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM19 8v6M16 10.5h5M19 14l-2 6M19 14l2 6M13 12H6M9 9l-3 3 3 3M2.5 3v18',
+  salidaM:'M19 3a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM19 8l-3.2 8.5h6.4zM17 16.5v3.5M20 16.5v3.5M13 12H6M9 9l-3 3 3 3M2.5 3v18',
   entrada:'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3',
   salida:'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9',
   reloj:'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM12 6v6l4 2',
@@ -523,9 +529,10 @@ const svgIc=(k,cl)=>'<svg class="ic ic-'+k+(cl?' '+cl:'')+'" viewBox="0 0 24 24"
 function iconoKey(e){
   const t=e.t, x=norm((e.det||'')+' '+(e.a||''));
   if(t==='clase') return null;
+  if(t==='colab') return 'colab';
+  if(t==='colabpie') return 'pie';
   if(/apoderad/.test(x)) return 'apoderados';
   if(/planific|prepar|material|correccion|evaluac/.test(x)&&t!=='colacion') return 'prep';
-  if(/colaborativ|colaboraci/.test(x)) return 'colab';
   if(/consejo|reunion|coordinaci/.test(x)&&t!=='colacion') return 'reunion';
   if(/colacion|almuerzo/.test(x)) return 'food';
   if(/\bpie\b|integraci|inclusi/.test(x)&&t!=='AC'&&t!=='AR') return 'pie';
@@ -885,7 +892,7 @@ function stageDocente(){
     '<span>'+n+' bloques por semana en '+cursos.length+(cursos.length===1?' curso':' cursos')+(conPie?'. '+conPie+' con apoyo PIE':'')+'</span></p></div>'+
     '<div class="btns"><button class="btn sig" data-go="permisos" data-id="'+esc(p.id)+'">Consultar permiso</button><button class="btn wa" data-act="compartir" data-tipo="docente" data-id="'+esc(p.id)+'">'+ICON.wa+' Enviar por WhatsApp</button><button class="btn" data-act="pdf" data-tipo="docente" data-id="'+esc(p.id)+'">'+ICON.pdf+' Descargar PDF</button><button class="btn" data-act="print">'+ICON.print+' Imprimir</button></div>'+
     (S.auth.ok&&API_URL?'<div class="btns"><button class="btn" data-act="editdoc" data-id="'+esc(p.id)+'">Editar horario de este docente</button></div>':'')+'</div>'+
-    (n||eventosDoc(p).length?calendario(eventosDoc(p),{K:1.75,sinLeyenda:true,jornada:jornadaDe(p,eventosDoc(p))})+leyendaEv(eventosDoc(p))+legend(DIAS.some(d=>w[d].some(s=>s.nota==='cambio')),DIAS.some(d=>w[d].some(s=>s.el)))+(eventosDoc(p).some(e=>e.t!=='clase')?'<p class="help otras-nota">Las horas de preparación, reuniones, colación y otras actividades no se consideran para cubrir permisos: sirven solo para saber en qué está el docente.</p>':''):'<div class="panel">Este docente no tiene horas en el horario.</div>');
+    (n||eventosDoc(p).length?calendario(eventosDoc(p),{K:1.75,sinLeyenda:true,jornada:jornadaDe(p,eventosDoc(p)),sexo:p.sexo})+leyendaEv(eventosDoc(p))+legend(DIAS.some(d=>w[d].some(s=>s.nota==='cambio')),DIAS.some(d=>w[d].some(s=>s.el)))+(eventosDoc(p).some(e=>e.t!=='clase')?'<p class="help otras-nota">Las horas de preparación, reuniones, colación y otras actividades no se consideran para cubrir permisos: sirven solo para saber en qué está el docente.</p>':''):'<div class="panel">Este docente no tiene horas en el horario.</div>');
 }
 
 function sigSlot(s){return [s.sala||'',s.cid,s.a,s.det||'',(s.co||[]).join(','),(s.docs||[]).join(','),(s.pie||[]).map(q=>q.id+(q.ar?'*':'')).join(','),s.ar?1:0,s.nota||''].join('~');}
@@ -908,7 +915,7 @@ function eventosPersona(p,tp){
   return out.concat(ordenarOtras(out,eventosPro(p.horario).filter(e=>OTRAS_ET.indexOf(e.t)>=0)));
 }
 /* Las clases mandan; las otras actividades se recortan para no superponerse (queda todo en una sola columna por día) */
-const PRIO_EV={AC:0,AR:0,priorizados:1,taller:1,colacion:2,reunion:3,colab:4,traslado:5,prep:6,otro:7,nolectivo:8};
+const PRIO_EV={AC:0,AR:0,priorizados:1,taller:1,colacion:2,reunion:3,colab:4,colabpie:4,traslado:5,prep:6,otro:7,nolectivo:8};
 function ordenarOtras(clases,otras){
   const res=[];
   DIAS.forEach(d=>{
@@ -943,14 +950,14 @@ function datosClase(e){
   const salas=salasDe(g.map(x=>x.sala));
   return {q,g,sub,nombre,txt,co,pies,docs,ar,pie:e.tp==='pie',salas};
 }
-const EVCOL={AC:['#2f72c4','#e3eefb'],AR:['#0a7d8c','#d9f1f4'],taller:['#7b57c0','#eee8f9'],priorizados:['#7b57c0','#eee8f9'],colab:['#3f9a52','#e3f4e6'],colacion:['#df7a1f','#fdecdc'],prep:['#b48514','#faf1d6'],reunion:['#c04a8a','#fae6f0'],nolectivo:['#8a97a6','#eef1f5'],traslado:['#64798d','#e9eff4'],otro:['#9aabbb','#f1f4f8']};
+const EVCOL={AC:['#2f72c4','#e3eefb'],AR:['#0a7d8c','#d9f1f4'],taller:['#7b57c0','#eee8f9'],priorizados:['#7b57c0','#eee8f9'],colab:['#3f9a52','#e3f4e6'],colabpie:['#00a8d6','#dff4fb'],colacion:['#df7a1f','#fdecdc'],prep:['#b48514','#faf1d6'],reunion:['#c04a8a','#fae6f0'],nolectivo:['#8a97a6','#eef1f5'],traslado:['#64798d','#e9eff4'],otro:['#9aabbb','#f1f4f8']};
 function itemsLeyenda(evs){
-  const orden=['AC','AR','taller','priorizados','prep','colab','reunion','colacion','traslado','nolectivo','otro'];
+  const orden=['AC','AR','taller','priorizados','prep','colab','colabpie','reunion','colacion','traslado','nolectivo','otro'];
   const hay=new Set(evs.map(e=>e.t));
   const out=[]; if(hay.has('clase')){ const ks=[]; evs.filter(e=>e.t==='clase').forEach(e=>{const k=e.s.el?'ele':subjKey(e.s.a); if(ks.indexOf(k)<0) ks.push(k);}); ks.sort((a,b)=>Object.keys(SUBJ_PAL).indexOf(a)-Object.keys(SUBJ_PAL).indexOf(b)).forEach(k=>out.push([SUBJ_PAL[k][0],SUBJ_PAL[k][2]])); }
   orden.forEach(t=>{ if(hay.has(t)) out.push([EVCOL[t][0],TIPO_N[t],t==='colacion'?'food':t]); });
-  const usa=new Set(); evs.forEach(e=>{const k=iconoKey(e); if(k&&(k==='apoderados'||(k==='prep'&&e.t!=='prep')||(k==='colab'&&e.t!=='colab')||(k==='reunion'&&e.t!=='reunion')||(k==='pie'&&e.t!=='taller'&&e.t!=='priorizados'))) usa.add(k);});
-  const ET={apoderados:'Atención de apoderados',prep:'Planificación / material',colab:'Trabajo colaborativo',reunion:'Reunión / coordinación',pie:'Trabajo PIE'};
+  const usa=new Set(); evs.forEach(e=>{const k=iconoKey(e); if(k&&(k==='apoderados'||(k==='prep'&&e.t!=='prep')||(k==='reunion'&&e.t!=='reunion')||(k==='pie'&&e.t!=='taller'&&e.t!=='priorizados'))) usa.add(k);});
+  const ET={apoderados:'Atención de apoderados',prep:'Planificación / material',reunion:'Reunión / coordinación',pie:'Trabajo PIE'};
   usa.forEach(k=>out.push([EVCOL[{apoderados:'reunion',prep:'prep',colab:'colab',reunion:'reunion',pie:'taller'}[k]][0],ET[k],k]));
   return out;
 }
@@ -958,10 +965,10 @@ function leyendaEv(evs){
   const it=itemsLeyenda(evs); if(!it.length) return '';
   return '<div class="kleg">'+it.map(x=>'<span>'+(x[2]&&ICONOS[x[2]]?'<i class="kic" style="color:'+x[0]+'">'+svgIc(x[2])+'</i>':'<i style="background:'+x[0]+'"></i>')+esc(x[1])+'</span>').join('')+'</div>';
 }
-const OTRAS_ET=['prep','reunion','colab','colacion','taller','traslado','otro','nolectivo'];
+const OTRAS_ET=['prep','reunion','colab','colabpie','colacion','taller','traslado','otro','nolectivo'];
 /* calendario (profesionales PIE) */
-const TIPO_N={clase:'Clase',AC:'Aula común',AR:'Aula de recursos',taller:'Taller',priorizados:'Estudiantes priorizados',colab:'Trabajo colaborativo',colacion:'Almuerzo (colación)',nolectivo:'No lectivo',prep:'Preparación',reunion:'Reunión',traslado:'Traslado',otro:'Otra actividad'};
-const TIPO_SOFT={colab:1,colacion:1,nolectivo:1,prep:1,reunion:1,traslado:1,otro:1};
+const TIPO_N={clase:'Clase',AC:'Aula común',AR:'Aula de recursos',taller:'Taller',priorizados:'Estudiantes priorizados',colab:'Colaboración',colabpie:'Colaborativo PIE',colacion:'Almuerzo (colación)',nolectivo:'No lectivo',prep:'Preparación',reunion:'Reunión',traslado:'Traslado',otro:'Otra actividad'};
+const TIPO_SOFT={colab:1,colabpie:1,colacion:1,nolectivo:1,prep:1,reunion:1,traslado:1,otro:1};
 const rotuloEv=e=>e.det||TIPO_N[e.t];
 function eventosPro(h){return (h||[]).filter(e=>TIPO_N[e.t]);}
 function lanes(evs){
@@ -978,6 +985,7 @@ function lanes(evs){
   if(grupo.length) cierra();
   return out;
 }
+const sexoK=g=>g==='f'?'M':g==='m'?'H':'';
 const salaFmt=x=>x?String(x).charAt(0).toUpperCase()+String(x).slice(1).toLowerCase():'';
 const salaDeCurso=cid=>(D.cursos[cid]&&D.cursos[cid].sala)||'';
 const salasDe=a=>uniq(a.filter(Boolean));
@@ -1003,7 +1011,7 @@ function calendario(horario,op){
   const K=op.K||1.3, tot=t1-t0;
   const alto='calc(var(--kk)*'+tot+'*1px)';
   let axis='<div class="cal-axis" style="height:'+alto+'">'; for(let m=t0;m<=t1;m+=60) axis+='<span style="top:calc(var(--kk)*'+(m-t0)+'*1px)">'+hhmm(m)+'</span>'; axis+='</div>';
-  let h='<div class="cal-wrap" data-k="'+K+'" style="--kk:'+K+'"><div class="cal" data-dia="'+S.dia+'"><div></div>'+DIAS.map(d=>'<div class="cal-h'+(d===HOY?' hoy':'')+'" data-d="'+d+'"><span>'+DIA_N[d]+'</span>'+(jor[d]?'<span class="jor"><span class="jp in" title="Inicio de la jornada">'+svgIc('entrada')+'<b>Entrada</b> '+esc(jor[d].ini)+'</span><span class="jp out" title="Término de la jornada">'+svgIc('salida')+'<b>Salida</b> '+esc(jor[d].fin)+'</span></span>':'')+'</div>').join('')+axis;
+  let h='<div class="cal-wrap" data-k="'+K+'" style="--kk:'+K+'"><div class="cal" data-dia="'+S.dia+'"><div></div>'+DIAS.map(d=>'<div class="cal-h'+(d===HOY?' hoy':'')+'" data-d="'+d+'"><span>'+DIA_N[d]+'</span>'+(jor[d]?'<span class="jor"><span class="jp in" title="Inicio de la jornada">'+svgIc('entrada'+sexoK(op.sexo))+'<b>Entrada</b> '+esc(jor[d].ini)+'</span><span class="jp out" title="Término de la jornada">'+svgIc('salida'+sexoK(op.sexo))+'<b>Salida</b> '+esc(jor[d].fin)+'</span></span>':'')+'</div>').join('')+axis;
   DIAS.forEach(d=>{
     const ev=lanes(evs.filter(e=>e.d===d));
     h+='<div class="cal-col" data-d="'+d+'" style="height:'+alto+';--hh:calc(var(--kk)*60px)">'+(jor[d]?'<div class="jfuera ini" style="height:calc(var(--kk)*'+(mins(jor[d].ini)-t0)+'*1px)"></div><div class="jfuera fin" style="top:calc(var(--kk)*'+(mins(jor[d].fin)-t0)+'*1px);bottom:0"></div>':'')+ev.map(x=>{
@@ -1031,7 +1039,7 @@ function calendario(horario,op){
 function ajustarCal(raiz){
   (raiz||document).querySelectorAll('.cal-wrap').forEach(w=>{
     const cal=w.querySelector('.cal'); if(!cal||!cal.offsetParent) return;
-    let k=parseFloat(w.dataset.k)||1.3; const kmax=3.6;
+    let k=parseFloat(w.dataset.k)||1.3; const kmax=8;
     w.style.setProperty('--kk',k);
     for(let it=0;it<10;it++){
       let need=k;
@@ -1060,14 +1068,14 @@ function stagePie(){
     const evs=eventosPro(p.horario).filter(e=>e.t==='AC'||e.t==='AR');
     const ar=evs.filter(e=>e.t==='AR').length;
     return bannerAus(p.id)+'<div class="stage-head"><div class="grow"><p class="kicker">'+esc(p.cargo||'Profesional PIE')+'</p><h2>'+esc(p.nombre)+'</h2><p class="meta"><span>'+evs.length+' atenciones por semana'+(ar?', '+ar+' en aula de recursos':'')+'</span></p></div>'+btnsCompartir('pie',p.id)+'</div>'+
-      calendario(eventosPie(p),{jornada:jornadaDe(p,eventosPie(p))})+resumenCursosPro(p.horario);
+      calendario(eventosPie(p),{jornada:jornadaDe(p,eventosPie(p)),sexo:p.sexo})+resumenCursosPro(p.horario);
   }
   const w=PS[p.id]||emptyWeek(); const n=countSlots(w);
   const docs={}; DIAS.forEach(d=>w[d].forEach(s=>s.docs.forEach(t=>docs[t]=(docs[t]||0)+1)));
   const lista=Object.keys(docs).sort((a,b)=>docs[b]-docs[a]);
   const ar=DIAS.reduce((s,d)=>s+w[d].filter(x=>x.ar).length,0);
   return bannerAus(p.id)+'<div class="stage-head"><div class="grow"><p class="kicker">Docente PIE</p><h2>'+esc(p.nombre)+'</h2><p class="meta"><span>Acompaña '+n+' bloques por semana'+(ar?' ('+ar+' en Aula de Recursos)':'')+'</span></p></div>'+btnsCompartir('pie',p.id)+'</div>'+
-    (n||eventosPersona(p,'pie').length?calendario(eventosPersona(p,'pie'),{K:1.75,sinLeyenda:true,jornada:jornadaDe(p,eventosPersona(p,'pie'))})+leyendaEv(eventosPersona(p,'pie'))+(eventosPersona(p,'pie').some(e=>e.t!=='clase')?'<p class="help otras-nota">Las horas de colaboración, reuniones, almuerzo y otras actividades sirven solo para saber en qué está la persona.</p>':''):'<div class="panel">No hay horas cargadas.</div>')+
+    (n||eventosPersona(p,'pie').length?calendario(eventosPersona(p,'pie'),{K:1.75,sinLeyenda:true,jornada:jornadaDe(p,eventosPersona(p,'pie')),sexo:p.sexo})+leyendaEv(eventosPersona(p,'pie'))+(eventosPersona(p,'pie').some(e=>e.t!=='clase')?'<p class="help otras-nota">Las horas de colaboración, reuniones, almuerzo y otras actividades sirven solo para saber en qué está la persona.</p>':''):'<div class="panel">No hay horas cargadas.</div>')+
     '<div class="panel resumen"><h4>Docentes con los que trabaja</h4><ul>'+lista.map(t=>'<li><button class="lnk" data-go="docentes" data-id="'+esc(t)+'">'+esc(DOC[t]?DOC[t].nombre:t)+'</button>: '+docs[t]+' bloques</li>').join('')+'</ul></div>';
 }
 
@@ -1437,7 +1445,7 @@ function listaOtrasDoc(p){
   return ev.map(x=>'<li><span>'+DIA_N[x.h.d]+' '+esc(x.h.ini)+' a '+esc(x.h.fin)+'. '+esc(x.h.det||TIPO_N[x.h.t]||x.h.t)+'</span><button type="button" data-act="dhorquitar" data-i="'+x.i+'" aria-label="Quitar esta actividad">×</button></li>').join('');
 }
 function formOtraDoc(){
-  return '<div class="fld"><span>Agregar otra actividad</span><div class="slotrow"><select id="do-d" aria-label="Día">'+DIAS.map(d=>'<option value="'+d+'">'+DIA_N[d]+'</option>').join('')+'</select><input type="time" id="do-ini" value="08:00" aria-label="Desde"><input type="time" id="do-fin" value="08:45" aria-label="Hasta"><select id="do-t" aria-label="Tipo">'+['prep','reunion','colacion','colab','taller','traslado','otro'].map(t=>'<option value="'+t+'">'+TIPO_N[t]+'</option>').join('')+'</select></div>'+
+  return '<div class="fld"><span>Agregar otra actividad</span><div class="slotrow"><select id="do-d" aria-label="Día">'+DIAS.map(d=>'<option value="'+d+'">'+DIA_N[d]+'</option>').join('')+'</select><input type="time" id="do-ini" value="08:00" aria-label="Desde"><input type="time" id="do-fin" value="08:45" aria-label="Hasta"><select id="do-t" aria-label="Tipo">'+['prep','reunion','colacion','colab','colabpie','taller','traslado','otro'].map(t=>'<option value="'+t+'">'+TIPO_N[t]+'</option>').join('')+'</select></div>'+
     '<div class="slotrow"><input id="do-det" placeholder="Detalle (opcional), por ejemplo Reunión de departamento" aria-label="Detalle"></div><button type="button" class="btn" data-act="dhoragregar">Agregar al horario</button></div>';
 }
 function formPersona(){
@@ -1448,6 +1456,7 @@ function formPersona(){
   const depts=uniq(D.docentes.map(d=>d.dept).filter(Boolean)).sort();
   let h='<div class="panel"><h3>'+(nuevo?'Nuevo '+rotulo:esc(f.nombre0||f.nombre))+'</h3>'+
     '<form data-form="persona"><label class="fld"><span>Nombre completo</span><input id="pf-nombre" value="'+esc(f.nombre)+'" required autocomplete="off"></label>'+
+    '<label class="fld"><span>Mujer u hombre (para el ícono de entrada y salida)</span><select id="pf-sexo"><option value="">Sin indicar</option><option value="f"'+(f.sexo==='f'?' selected':'')+'>Mujer</option><option value="m"'+(f.sexo==='m'?' selected':'')+'>Hombre</option></select></label>'+
     (pro?'<label class="fld"><span>Cargo</span><input id="pf-cargo" value="'+esc(f.cargo||'')+'" placeholder="Ej. Psicopedagoga" autocomplete="off"></label>':'')+
     (pie?'':'<label class="fld"><span>Nombre corto (como aparece en los horarios)</span><input id="pf-abrev" value="'+esc(f.abrev)+'" autocomplete="off"></label>'+
       '<label class="fld"><span>Departamento</span><input id="pf-dept" list="pf-depts" value="'+esc(f.dept)+'" autocomplete="off"></label><datalist id="pf-depts">'+depts.map(d=>'<option value="'+esc(d)+'">').join('')+'</datalist>')+
@@ -1490,13 +1499,13 @@ function aplicarPersona(){
   const lista=pie?D.pie:D.docentes;
   if(lista.some(p=>p.id!==f.id&&norm(p.nombre)===norm(nombre))){f.err='Ya existe alguien con ese nombre.';return false;}
   if(!f.id){
-    const o={id:slug(nombre),nombre,ciclos:[]};
+    const o={id:slug(nombre),nombre,ciclos:[]}; if(f.sexo) o.sexo=f.sexo;
     if(!pie){o.abrev=(f.abrev||'').trim()||nombre;o.dept=(f.dept||'').trim()||null;o.en_listado=true;}
     else if(pro){o.tipo='profesional';o.cargo=(f.cargo||'').trim()||'Profesional PIE';o.horario=[];}
     else o.tipo='docente';
     lista.push(o); f.id=o.id;
   }else{
-    const o=lista.find(p=>p.id===f.id); o.nombre=nombre;
+    const o=lista.find(p=>p.id===f.id); o.nombre=nombre; if(f.sexo) o.sexo=f.sexo; else delete o.sexo;
     if(!pie){o.abrev=(f.abrev||'').trim()||nombre;o.dept=(f.dept||'').trim()||null;}
     if(pro) o.cargo=(f.cargo||'').trim()||'Profesional PIE';
   }
@@ -1571,6 +1580,8 @@ async function cargarServidor(){
     /* la jornada (entrada y salida) llegó después: se completa desde data.js sin tocar lo editado */
     ['docentes','pie'].forEach(k=>D[k].forEach(p=>{ if(!p.jornada){const b=BASE[k].find(x=>x.id===p.id); if(b&&b.jornada) p.jornada=clonar(b.jornada);} }));
         /* v19: se incorporan, sin tocar lo editado, Romina Retamal (PIE) y los Electivo 4 de Educación física si el servidor aún no los tiene */
+    /* v21: Colaborativo PIE pasa a ser un tipo propio (distinto de Colaboración) y se completa el sexo de cada persona */
+    ['docentes','pie'].forEach(k=>D[k].forEach(p=>{ (p.horario||[]).forEach(h=>{ if(h.t==='colab'&&/colaborativ/i.test(h.det||'')) h.t='colabpie'; }); if(!p.sexo){const b=BASE[k].find(x=>x.id===p.id); if(b&&b.sexo) p.sexo=b.sexo;} }));
     let mig=false;
     if(!D.pie.some(x=>x.id==='R.Retamal')){ const b=BASE.pie.find(x=>x.id==='R.Retamal'); if(b){ D.pie.push(clonar(b)); mig=true;
       Object.keys(BASE.cursos).forEach(cid=>{ const c=D.cursos[cid]; if(!c) return; BASE.cursos[cid].blocks.forEach(bb=>Object.keys(bb.c).forEach(dd=>{ const q=(bb.c[dd].p||[]).find(z=>z.id==='R.Retamal'); if(!q) return; const t=c.blocks.find(x=>x.ini===bb.ini&&x.fin===bb.fin); const e=t&&t.c[dd]; if(e&&!e.el){ e.p=e.p||[]; if(!e.p.some(z=>z.id==='R.Retamal')) e.p.push({id:'R.Retamal',ar:!!q.ar}); } })); }); } }
@@ -1740,28 +1751,28 @@ function partesEv(e){
   }
   return {col,partes};
 }
-function bCalendario(ctx,y,dib,evs,hoyIdx,Kp,jor){
+function bCalendario(ctx,y,dib,evs,hoyIdx,Kp,jor,sx){
   const x0=IMG_M, wT=60, gap=6, wD=(IMG_W-2*IMG_M-wT-gap*5)/5;
   jor=jor||jornadaDe(null,evs);
   const todos=evs.map(e=>mins(e.ini)).concat(evs.map(e=>mins(e.fin))); DIAS.forEach(d=>{if(jor[d]) todos.push(mins(jor[d].ini),mins(jor[d].fin));});
   const t0=Math.floor(Math.min.apply(null,todos)/60)*60, t1=Math.ceil(Math.max.apply(null,todos)/60)*60;
-  const hh=76, LH=16;
+  const hh=92, LH=16;
   /* escala vertical: la mínima en que todo el texto de cada tarjeta cabe completo */
   let K=Kp||1.55; const info=[];
   DIAS.forEach(d=>{
     lanes(evs.filter(e=>e.d===d)).forEach(z=>{
       const e=z.e, ew=wD/z.n, mw=ew-3-18, pe=partesEv(e); let n=0;
       pe.partes.forEach(p=>{ if(!p[0]) return; ctx.font=p[1]; n+=envolver(ctx,p[0],mw-(p[3]?18:(p===pe.partes[0]&&p[3]?18:0))).length; });
-      const dur=Math.max(5,mins(e.fin)-mins(e.ini)); const need=(n*LH+12)/dur; if(need>K) K=Math.min(need,4.2);
+      const dur=Math.max(5,mins(e.fin)-mins(e.ini)); const need=(n*LH+12)/dur; if(need>K) K=Math.min(need,8);
       info.push({d,z,pe,ew});
     });
   });
   if(dib){
     DIAS.forEach((d,i)=>{const x=x0+wT+gap+i*(wD+gap); rr(ctx,x,y,wD,hh,10); const hoy=(i===hoyIdx); ctx.fillStyle=hoy?'#0c2d5a':'#eef3f9'; ctx.fill(); ctx.fillStyle=hoy?'#fff':'#0c2d5a'; ctx.font='800 19px '+FONT; ctx.fillText(DIA_N[d],x+12,y+24);
       if(jor[d]){
-        [['entrada','Entrada',jor[d].ini,'#d6f5e0','#0d6b33','#2ecc71','#05341a'],['salida','Salida',jor[d].fin,'#ffe0dd','#a1241b','#ff8a80','#4d0b06']].forEach((q,k)=>{
-          const py=y+32+k*20, bg=hoy?q[5]:q[3], fg=hoy?q[6]:q[4]; ctx.font='800 12.5px '+FONT; const w1=ctx.measureText(q[1]+' ').width; ctx.font='600 12.5px '+FONT; const w2=ctx.measureText(q[2]).width;
-          rr(ctx,x+10,py,w1+w2+36,17,8.5); ctx.fillStyle=bg; ctx.fill(); dibIcono(ctx,q[0],x+15,py+2,13,fg); ctx.fillStyle=fg; ctx.font='800 12.5px '+FONT; ctx.fillText(q[1],x+32,py+13); ctx.font='600 12.5px '+FONT; ctx.fillText(q[2],x+32+w1,py+13);
+        [['entrada'+sexoK(sx),'Entrada',jor[d].ini,'#d6f5e0','#0d6b33','#2ecc71','#05341a'],['salida'+sexoK(sx),'Salida',jor[d].fin,'#ffe0dd','#a1241b','#ff8a80','#4d0b06']].forEach((q,k)=>{
+          const py=y+32+k*27, bg=hoy?q[5]:q[3], fg=hoy?q[6]:q[4]; ctx.font='800 12.5px '+FONT; const w1=ctx.measureText(q[1]+' ').width; ctx.font='600 12.5px '+FONT; const w2=ctx.measureText(q[2]).width;
+          rr(ctx,x+10,py,w1+w2+48,24,12); ctx.fillStyle=bg; ctx.fill(); dibIcono(ctx,q[0],x+14,py+1,22,fg); ctx.fillStyle=fg; ctx.font='800 13px '+FONT; ctx.fillText(q[1],x+40,py+16); ctx.font='600 13px '+FONT; ctx.fillText(q[2],x+40+w1,py+16);
         });
       }});
     const top=y+hh+gap;
@@ -1886,7 +1897,7 @@ function especificacion(tipo,id){
     const p=DOC[id], w=TS[id]||emptyWeek(); const j=jefaturas[id];
     return {archivo:'horario-'+id,titulo:'Horario de '+p.nombre,texto:'Horario de '+p.nombre+' (Colegio Marina de Chile)',bloques:[
       ['t','Horario docente',p.nombre,[(p.dept?p.dept:''),(j?'Jefatura de '+j.map(cname).join(' y '):'')].filter(Boolean)],
-      ...ausBloques(id),(eventosDoc(p).length?['c',eventosDoc(p),1.7,jornadaDe(p,eventosDoc(p))]:['n','Este docente no tiene horas en el horario.']),['l',itemsLeyenda(eventosDoc(p))],
+      ...ausBloques(id),(eventosDoc(p).length?['c',eventosDoc(p),1.7,jornadaDe(p,eventosDoc(p)),p.sexo]:['n','Este docente no tiene horas en el horario.']),['l',itemsLeyenda(eventosDoc(p))],
       ['n','PIE: profesional que acompaña al docente en ese bloque. AR: atiende en Aula de Recursos.'+(eventosDoc(p).some(e=>e.t!=='clase')?' Las horas de preparación, reuniones, colación y otras actividades no se consideran para cubrir permisos.':'')]]};
   }
   if(tipo==='pie'){
@@ -1894,12 +1905,12 @@ function especificacion(tipo,id){
     if(p.tipo==='profesional'){
       const evs=eventosPie(p);
       return {archivo:'horario-'+id,titulo:'Horario de '+p.nombre,texto:'Horario de '+p.nombre+' (Colegio Marina de Chile)',bloques:[
-        ['t',p.cargo||'Profesional PIE',p.nombre,['Atención en aula común y en aula de recursos']],...ausBloques(id),(evs.length?['c',evs,null,jornadaDe(p,evs)]:['n','Todavía no hay atenciones cargadas.']),
+        ['t',p.cargo||'Profesional PIE',p.nombre,['Atención en aula común y en aula de recursos']],...ausBloques(id),(evs.length?['c',evs,null,jornadaDe(p,evs),p.sexo]:['n','Todavía no hay atenciones cargadas.']),
         ['l',itemsLeyenda(evs)]]};
     }
     const w=PS[id]||emptyWeek();
     return {archivo:'horario-'+id,titulo:'Horario de '+p.nombre,texto:'Horario de '+p.nombre+' (Colegio Marina de Chile)',bloques:[
-      ['t','Docente PIE',p.nombre,['Apoyo a los cursos y docentes indicados']],...ausBloques(id),(eventosPersona(p,'pie').length?['c',eventosPersona(p,'pie'),1.7,jornadaDe(p,eventosPersona(p,'pie'))]:['n','Todavía no hay horas cargadas.']),['l',itemsLeyenda(eventosPersona(p,'pie'))],['n','AR: atiende en Aula de Recursos. Las horas de colaboración, reuniones, almuerzo y otras actividades sirven solo para saber en qué está la persona.']]};
+      ['t','Docente PIE',p.nombre,['Apoyo a los cursos y docentes indicados']],...ausBloques(id),(eventosPersona(p,'pie').length?['c',eventosPersona(p,'pie'),1.7,jornadaDe(p,eventosPersona(p,'pie')),p.sexo]:['n','Todavía no hay horas cargadas.']),['l',itemsLeyenda(eventosPersona(p,'pie'))],['n','AR: atiende en Aula de Recursos. Las horas de colaboración, reuniones, almuerzo y otras actividades sirven solo para saber en qué está la persona.']]};
   }
   if(tipo==='electivo'){
     const g=GR[id], sl=unirSlots(g.slots), pies=pieDeGrupo(g);
@@ -1936,7 +1947,7 @@ async function generarImagen(tipo,id){
       const t=b[0];
       if(t==='t') y=bTitulo(ctx,y,dib,b[1],b[2],b[3]);
       else if(t==='g') y=bGrilla(ctx,y,dib,b[1],hoyI);
-      else if(t==='c') y=bCalendario(ctx,y,dib,b[1],hoyI,b[2],b[3]);
+      else if(t==='c') y=bCalendario(ctx,y,dib,b[1],hoyI,b[2],b[3],b[4]);
       else if(t==='x') y=bAlerta(ctx,y,dib,b[1],b[2]);
       else if(t==='l') y=bLeyenda(ctx,y,dib,b[1]);
       else if(t==='k') y=bKV(ctx,y,dib,b[1]);
@@ -2229,7 +2240,7 @@ function clasificar(texto,esRecreo){
   if(T.indexOf('COLABORACION')>=0) return 'colab';
   if(T.indexOf('COLACION')>=0) return 'colacion';
   if(T.indexOf('NO LECTIVO')>=0) return 'nolectivo';
-  if(T.indexOf('COLABORATIV')>=0) return 'colab';
+  if(T.indexOf('COLABORATIV')>=0) return 'colabpie';
   if(T.indexOf('TRASLADO')>=0) return 'traslado';
   if(T.indexOf('PRIORIZADO')>=0) return 'priorizados';
   if(/\bTVA\b|TALLER HAB/.test(T)) return 'taller';
@@ -2330,7 +2341,7 @@ function aplicarPersonaX(X,tipo,id,entradas,opts){
   { const J=entradas.jornada, pj=(tipo==='doc'?X.docentes:X.pie).find(q=>q.id===id); if(pj&&J&&Object.keys(J).length) pj.jornada=J; }
   if(tipo==='pro'){
     const p=X.pie.find(q=>q.id===id);
-    p.horario=entradas.filter(e=>['AC','AR','taller','priorizados','colab','colacion','nolectivo'].indexOf(e.t)>=0).map(e=>({d:e.d,ini:e.ini,fin:e.fin,t:e.t,cs:e.cs,a:e.a,s:e.s}));
+    p.horario=entradas.filter(e=>['AC','AR','taller','priorizados','colab','colabpie','colacion','nolectivo'].indexOf(e.t)>=0).map(e=>({d:e.d,ini:e.ini,fin:e.fin,t:e.t,cs:e.cs,a:e.a,s:e.s}));
     quitarPDeTodo(X,id); derivarPro(X,p); return omitidos;
   }
   if(tipo==='pie'){ const pp=X.pie.find(q=>q.id===id); if(pp) pp.horario=otrasDe(entradas); }
@@ -2352,7 +2363,7 @@ function aplicarPersonaX(X,tipo,id,entradas,opts){
 }
 
 /* --- docentes: otras horas y electivos --- */
-const OTRAS_T=['prep','reunion','colab','colacion','taller','traslado','otro','nolectivo'];
+const OTRAS_T=['prep','reunion','colab','colabpie','colacion','taller','traslado','otro','nolectivo'];
 function otrasDe(entradas){ return entradas.filter(e=>OTRAS_T.indexOf(e.t)>=0).map(e=>{const o={d:e.d,ini:e.ini,fin:e.fin,t:e.t}; if(e.det) o.det=e.det; return o;}); }
 function planElectivos(entradas){
   const m={};
@@ -2468,7 +2479,7 @@ function previewImp(m){
     if(r.warns.length) h+='<ul class="preview">'+r.warns.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>';
     if(r.tipo!=='pro') h+='<div class="preview"><label class="chk"><input type="checkbox" data-act="impopt" data-k="limpia"'+(m.opts.limpia?' checked':'')+'> Quitarla de las clases que no aparecen en lo pegado</label>'+
       (r.tipo==='doc'?'<label class="chk"><input type="checkbox" data-act="impopt" data-k="reemplaza"'+(m.opts.reemplaza?' checked':'')+'> Reemplaza a quien figure hoy como docente en esas clases</label>':'')+'</div>';
-    const ents=r.entradas.filter(e=>['AC','AR','taller','priorizados','colab','colacion','nolectivo'].indexOf(e.t)>=0);
+    const ents=r.entradas.filter(e=>['AC','AR','taller','priorizados','colab','colabpie','colacion','nolectivo'].indexOf(e.t)>=0);
     if(r.tipo==='pro') h+='<div class="preview"><b>Horario que quedará</b><ul>'+ents.map(e=>'<li>'+DIA_N[e.d]+' '+e.ini+' a '+e.fin+': '+esc(TIPO_N[e.t]||e.t)+(e.cs.length?'. '+esc(e.cs.map(cname).join(', ')):'')+(e.a?'. '+esc(e.a):'')+'</li>').join('')+'</ul></div>';
     else{
       if(r.tipo==='doc'&&r.plan.length) h+=previewElectivos(m,r);
@@ -2658,7 +2669,7 @@ function resumenItem(it,L){
   const r=it.hojas[it.sel]; if(!r||r.err) return null;
   const k=JSON.stringify([it.sel,it.pid,L.opts]); if(it._k===k&&it._res) return it._res;
   let o;
-  if(r.tipo==='pro'){ o={tipo:'pro',n:r.entradas.filter(e=>['AC','AR','taller','priorizados','colab','colacion','nolectivo'].indexOf(e.t)>=0).length}; }
+  if(r.tipo==='pro'){ o={tipo:'pro',n:r.entradas.filter(e=>['AC','AR','taller','priorizados','colab','colabpie','colacion','nolectivo'].indexOf(e.t)>=0).length}; }
   else{
     const X=clonar(D), dl=r.tipo==='doc'?decLote(r):{dec:{},omit:0};
     if(r.tipo==='doc') aplicarDocX(X,r.id,r.entradas,L.opts,r.plan,dl.dec); else aplicarPersonaX(X,r.tipo,r.id,r.entradas,L.opts);
@@ -2786,7 +2797,7 @@ app.addEventListener('click',e=>{
   if(act==='dia'){S.dia=a.dataset.v; document.querySelectorAll('.sched,.cal').forEach(t=>t.dataset.dia=S.dia); document.querySelectorAll('.day-pills button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===S.dia)); ajustarCal();}
   else if(act==='rail'){S.railOpen=!S.railOpen; const r=document.querySelector('.rail'); r.classList.toggle('open',S.railOpen); a.setAttribute('aria-expanded',S.railOpen); a.lastChild.textContent=S.railOpen?'Cerrar lista':'Cambiar';}
   else if(act==='print'){window.print();}
-  else if(act==='editdoc'){C.tipo='doc';C.q='';const p=D.docentes.find(x=>x.id===a.dataset.id);if(p){C.form={id:p.id,nombre:p.nombre,nombre0:p.nombre,abrev:p.abrev||'',dept:p.dept||'',cargo:p.cargo||'',err:''};}C.confirm=null;ir('config','personas');window.scrollTo({top:0});}
+  else if(act==='editdoc'){C.tipo='doc';C.q='';const p=D.docentes.find(x=>x.id===a.dataset.id);if(p){C.form={id:p.id,nombre:p.nombre,nombre0:p.nombre,abrev:p.abrev||'',dept:p.dept||'',cargo:p.cargo||'',sexo:p.sexo||'',err:''};}C.confirm=null;ir('config','personas');window.scrollTo({top:0});}
   else if(act==='compartir'){compartir(a.dataset.tipo,a.dataset.id);}
   else if(act==='pdf'){descargarPDF(a.dataset.tipo,a.dataset.id);}
   else if(act==='ausdel'){D.ausencias=(D.ausencias||[]).filter(x=>x.id!==a.dataset.id); marcarSucio(); render(); aviso('Registro quitado');}
@@ -2799,8 +2810,8 @@ app.addEventListener('click',e=>{
   else if(act==='salir'){S.auth={ok:false,clave:''};guardaSS('hclave',null);render();}
   else if(act==='recargar'){recargar();}
   else if(act==='ptipo'){C.tipo=a.dataset.v;C.form=null;C.q='';C.confirm=null;render();}
-  else if(act==='pers'){const lista=C.tipo==='doc'?D.docentes:D.pie;const p=lista.find(x=>x.id===a.dataset.id);if(p){C.form={id:p.id,nombre:p.nombre,nombre0:p.nombre,abrev:p.abrev||'',dept:p.dept||'',cargo:p.cargo||'',err:''};C.confirm=null;repintarPersonas();}}
-  else if(act==='pnuevo'){C.form={id:null,nombre:'',abrev:'',dept:'',cargo:'',err:''};C.confirm=null;repintarPersonas();const i=document.getElementById('pf-nombre');if(i)i.focus();}
+  else if(act==='pers'){const lista=C.tipo==='doc'?D.docentes:D.pie;const p=lista.find(x=>x.id===a.dataset.id);if(p){C.form={id:p.id,nombre:p.nombre,nombre0:p.nombre,abrev:p.abrev||'',dept:p.dept||'',cargo:p.cargo||'',sexo:p.sexo||'',err:''};C.confirm=null;repintarPersonas();}}
+  else if(act==='pnuevo'){C.form={id:null,nombre:'',abrev:'',dept:'',cargo:'',sexo:'',err:''};C.confirm=null;repintarPersonas();const i=document.getElementById('pf-nombre');if(i)i.focus();}
   else if(act==='pcancel'){C.form=null;repintarPersonas();}
   else if(act==='pconf'){C.confirm='del';repintarPersonas();}
   else if(act==='pconf2'){C.confirm='reset';render();}
@@ -2872,6 +2883,7 @@ app.addEventListener('input',e=>{
   else if(t.id==='pf-nombre'&&C.form){C.form.nombre=t.value;}
   else if(t.id==='pf-abrev'&&C.form){C.form.abrev=t.value;}
   else if(t.id==='pf-dept'&&C.form){C.form.dept=t.value;}
+  else if(t.id==='pf-sexo'&&C.form){C.form.sexo=t.value;}
   else if(t.id==='pf-cargo'&&C.form){C.form.cargo=t.value;}
   else if(t.id==='eg-nombre'&&C.eg){C.eg.nombre=t.value;}
   else if(t.id==='eg-sala'&&C.eg){C.eg.sala=t.value;}
