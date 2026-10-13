@@ -351,6 +351,7 @@ dialog::backdrop{background:rgba(12,45,90,.6)}
   .top-in{padding:8px 14px}
   .brand img{width:40px;height:40px}
 }
+@page{size:A4;margin:8mm}
 @media print{
   .top,.rail,.tools,.day-pills,.btn,.btns,.foot,.toast,.savebar,.banner{display:none!important}
   body{background:#fff}
@@ -442,6 +443,26 @@ dialog::backdrop{background:rgba(12,45,90,.6)}
 .jfuera.fin{border-top:3px solid #e5484d;border-radius:0 0 10px 10px}
 .ev{z-index:1}
 
+/* v22: entrada, salida y horas de trabajo */
+.cal-h .jor{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;width:100%}
+.cal-h .jt{display:flex;align-items:center;gap:6px;min-width:0}
+.cal-h .jb{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;flex:none;color:#fff;font-style:normal}
+.cal-h .jt.in .jb{background:linear-gradient(145deg,#2fd27a,#16994f);box-shadow:0 2px 7px rgba(22,153,79,.5)}
+.cal-h .jt.out .jb{background:linear-gradient(145deg,#ff7a73,#d93a41);box-shadow:0 2px 7px rgba(217,58,65,.5)}
+.cal-h .jb .ic{width:23px;height:23px;margin:0;color:#fff;stroke-width:1.9}
+.cal-h .jx{display:flex;flex-direction:column;line-height:1.05}
+.cal-h .jx em{font-style:normal;font-weight:600;font-size:10.5px;opacity:.75}
+.cal-h .jx b{font-weight:800;font-size:15px;letter-spacing:.2px}
+.cal-h .jh{display:flex;align-items:center;gap:5px;font:600 12px var(--fb,inherit);background:rgba(20,119,194,.12);color:#0c4a82;border-radius:8px;padding:3px 8px;margin-top:4px}
+.cal-h .jh .ic{width:14px;height:14px}
+.cal-h.hoy .jh{background:rgba(255,255,255,.2);color:#fff}
+.jsem{display:flex;align-items:center;gap:8px;background:#e8f1fb;color:#0c2d5a;border-radius:12px;padding:8px 14px;margin:0 0 10px;font-size:15px;width:max-content;max-width:100%}
+.jsem .ic{width:19px;height:19px;color:#1477c2}
+.jsem b{font-weight:800}
+
+.cal-h .jh small{display:inline;font-size:10.5px;opacity:.8;color:inherit}
+.jsem small{font-size:12.5px;opacity:.75}
+
 </style>
 </head>
 <body>
@@ -472,7 +493,7 @@ const API_URL = (window.APP_CONFIG && window.APP_CONFIG.API_URL) || "";
 const app = document.getElementById('app');
 if(!window.HORARIOS){ app.innerHTML='<div class="layout one"><div class="panel"><h2>No se cargaron los datos</h2><p>Falta el archivo data.js junto a index.html.</p></div></div>'; return; }
 const clonar = o => JSON.parse(JSON.stringify(o));
-const VERSION_APP = 'v21';
+const VERSION_APP = 'v23';
 const BASE = clonar(window.HORARIOS);
 let D = clonar(BASE);
 
@@ -892,7 +913,7 @@ function stageDocente(){
     '<span>'+n+' bloques por semana en '+cursos.length+(cursos.length===1?' curso':' cursos')+(conPie?'. '+conPie+' con apoyo PIE':'')+'</span></p></div>'+
     '<div class="btns"><button class="btn sig" data-go="permisos" data-id="'+esc(p.id)+'">Consultar permiso</button><button class="btn wa" data-act="compartir" data-tipo="docente" data-id="'+esc(p.id)+'">'+ICON.wa+' Enviar por WhatsApp</button><button class="btn" data-act="pdf" data-tipo="docente" data-id="'+esc(p.id)+'">'+ICON.pdf+' Descargar PDF</button><button class="btn" data-act="print">'+ICON.print+' Imprimir</button></div>'+
     (S.auth.ok&&API_URL?'<div class="btns"><button class="btn" data-act="editdoc" data-id="'+esc(p.id)+'">Editar horario de este docente</button></div>':'')+'</div>'+
-    (n||eventosDoc(p).length?calendario(eventosDoc(p),{K:1.75,sinLeyenda:true,jornada:jornadaDe(p,eventosDoc(p)),sexo:p.sexo})+leyendaEv(eventosDoc(p))+legend(DIAS.some(d=>w[d].some(s=>s.nota==='cambio')),DIAS.some(d=>w[d].some(s=>s.el)))+(eventosDoc(p).some(e=>e.t!=='clase')?'<p class="help otras-nota">Las horas de preparación, reuniones, colación y otras actividades no se consideran para cubrir permisos: sirven solo para saber en qué está el docente.</p>':''):'<div class="panel">Este docente no tiene horas en el horario.</div>');
+    (n||eventosDoc(p).length?calendario(eventosDoc(p),{K:1.75,sinLeyenda:true,jornada:jornadaDe(p,eventosDoc(p)),sexo:p.sexo})+leyendaEv(eventosDoc(p))+legend(DIAS.some(d=>w[d].some(s=>s.nota==='cambio')),DIAS.some(d=>w[d].some(s=>s.el))):'<div class="panel">Este docente no tiene horas en el horario.</div>');
 }
 
 function sigSlot(s){return [s.sala||'',s.cid,s.a,s.det||'',(s.co||[]).join(','),(s.docs||[]).join(','),(s.pie||[]).map(q=>q.id+(q.ar?'*':'')).join(','),s.ar?1:0,s.nota||''].join('~');}
@@ -985,13 +1006,19 @@ function lanes(evs){
   if(grupo.length) cierra();
   return out;
 }
+function minutosDia(jor,evs,d){
+  const j=jor[d]; if(!j) return 0; let m=mins(j.fin)-mins(j.ini);
+  if(!jor._inc) evs.filter(e=>e.d===d&&e.t==='colacion').forEach(e=>{const a=Math.max(mins(e.ini),mins(j.ini)), b=Math.min(mins(e.fin),mins(j.fin)); if(b>a) m-=b-a;});
+  return Math.max(0,m);
+}
+const hmTxt=m=>Math.floor(m/60)+' h'+(m%60?' '+String(m%60).padStart(2,'0')+' min':'');
 const sexoK=g=>g==='f'?'M':g==='m'?'H':'';
 const salaFmt=x=>x?String(x).charAt(0).toUpperCase()+String(x).slice(1).toLowerCase():'';
 const salaDeCurso=cid=>(D.cursos[cid]&&D.cursos[cid].sala)||'';
 const salasDe=a=>uniq(a.filter(Boolean));
 /* jornada: entrada y salida del día. Usa la cargada desde el Excel; si no hay, el primer y último bloque */
 function jornadaDe(p,evs){
-  const out={};
+  const out={}; out._inc=!!(p&&p.horas>=43); /* con contrato de 43 o 44 horas la colación cuenta como tiempo de trabajo */
   DIAS.forEach(d=>{
     const j=p&&p.jornada&&p.jornada[d];
     if(j&&j.ini&&j.fin){out[d]={ini:j.ini,fin:j.fin,real:true};return;}
@@ -1011,7 +1038,7 @@ function calendario(horario,op){
   const K=op.K||1.3, tot=t1-t0;
   const alto='calc(var(--kk)*'+tot+'*1px)';
   let axis='<div class="cal-axis" style="height:'+alto+'">'; for(let m=t0;m<=t1;m+=60) axis+='<span style="top:calc(var(--kk)*'+(m-t0)+'*1px)">'+hhmm(m)+'</span>'; axis+='</div>';
-  let h='<div class="cal-wrap" data-k="'+K+'" style="--kk:'+K+'"><div class="cal" data-dia="'+S.dia+'"><div></div>'+DIAS.map(d=>'<div class="cal-h'+(d===HOY?' hoy':'')+'" data-d="'+d+'"><span>'+DIA_N[d]+'</span>'+(jor[d]?'<span class="jor"><span class="jp in" title="Inicio de la jornada">'+svgIc('entrada'+sexoK(op.sexo))+'<b>Entrada</b> '+esc(jor[d].ini)+'</span><span class="jp out" title="Término de la jornada">'+svgIc('salida'+sexoK(op.sexo))+'<b>Salida</b> '+esc(jor[d].fin)+'</span></span>':'')+'</div>').join('')+axis;
+  let h='<div class="cal-wrap" data-k="'+K+'" style="--kk:'+K+'"><div class="cal" data-dia="'+S.dia+'"><div></div>'+DIAS.map(d=>'<div class="cal-h'+(d===HOY?' hoy':'')+'" data-d="'+d+'"><span>'+DIA_N[d]+'</span>'+(jor[d]?'<span class="jor"><span class="jt in" title="Inicio de la jornada"><i class="jb">'+svgIc('entrada'+sexoK(op.sexo))+'</i><span class="jx"><em>Entrada</em><b>'+esc(jor[d].ini)+'</b></span></span><span class="jt out" title="Término de la jornada"><i class="jb">'+svgIc('salida'+sexoK(op.sexo))+'</i><span class="jx"><em>Salida</em><b>'+esc(jor[d].fin)+'</b></span></span></span><span class="jh" title="Horas de trabajo del día, sin colación">'+svgIc('reloj')+' <b>'+hmTxt(minutosDia(jor,evs,d))+'</b> de trabajo'+(jor._inc?' <small>con colación</small>':'')+'</span>':'')+'</div>').join('')+axis;
   DIAS.forEach(d=>{
     const ev=lanes(evs.filter(e=>e.d===d));
     h+='<div class="cal-col" data-d="'+d+'" style="height:'+alto+';--hh:calc(var(--kk)*60px)">'+(jor[d]?'<div class="jfuera ini" style="height:calc(var(--kk)*'+(mins(jor[d].ini)-t0)+'*1px)"></div><div class="jfuera fin" style="top:calc(var(--kk)*'+(mins(jor[d].fin)-t0)+'*1px);bottom:0"></div>':'')+ev.map(x=>{
@@ -1033,7 +1060,9 @@ function calendario(horario,op){
         (soft?'<b>'+ic+' '+(e.t==='colacion'?'Almuerzo':esc(rotuloEv(e)))+'</b><small>'+esc(e.ini+' a '+e.fin)+'</small>':'<small title="'+esc(TIPO_N[e.t])+'">'+ic+' '+((e.t==='AC'||e.t==='AR')?'':esc(TIPO_N[e.t])+' · ')+esc(e.ini+' a '+e.fin)+'</small><b>'+(cs||esc(e.det||e.a||'Sin curso indicado'))+'</b>'+(det&&cs?'<small>'+esc(det)+'</small>':'')+(salas.length?'<small class="sala">'+svgIc('sala')+' '+esc(salas.map(salaFmt).join(' / '))+'</small>':''))+'</div>';
     }).join('')+'</div>';
   });
-  return (op.sinDias?'':dayPills())+h+'</div></div>'+(op.sinLeyenda?'':leyendaEv(evs));
+  const totSem=DIAS.reduce((t,d)=>t+minutosDia(jor,evs,d),0);
+  const tira=totSem?'<div class="jsem">'+svgIc('reloj')+' Horas de trabajo en la semana: <b>'+hmTxt(totSem)+'</b>'+(jor._inc?' <small>(la colación cuenta como trabajo)</small>':'')+'</div>':'';
+  return (op.sinDias?'':dayPills())+tira+h+'</div></div>'+(op.sinLeyenda?'':leyendaEv(evs));
 }
 /* Hace que ninguna tarjeta quede cortada: estira la escala vertical hasta que todo el texto cabe */
 function ajustarCal(raiz){
@@ -1075,7 +1104,7 @@ function stagePie(){
   const lista=Object.keys(docs).sort((a,b)=>docs[b]-docs[a]);
   const ar=DIAS.reduce((s,d)=>s+w[d].filter(x=>x.ar).length,0);
   return bannerAus(p.id)+'<div class="stage-head"><div class="grow"><p class="kicker">Docente PIE</p><h2>'+esc(p.nombre)+'</h2><p class="meta"><span>Acompaña '+n+' bloques por semana'+(ar?' ('+ar+' en Aula de Recursos)':'')+'</span></p></div>'+btnsCompartir('pie',p.id)+'</div>'+
-    (n||eventosPersona(p,'pie').length?calendario(eventosPersona(p,'pie'),{K:1.75,sinLeyenda:true,jornada:jornadaDe(p,eventosPersona(p,'pie')),sexo:p.sexo})+leyendaEv(eventosPersona(p,'pie'))+(eventosPersona(p,'pie').some(e=>e.t!=='clase')?'<p class="help otras-nota">Las horas de colaboración, reuniones, almuerzo y otras actividades sirven solo para saber en qué está la persona.</p>':''):'<div class="panel">No hay horas cargadas.</div>')+
+    (n||eventosPersona(p,'pie').length?calendario(eventosPersona(p,'pie'),{K:1.75,sinLeyenda:true,jornada:jornadaDe(p,eventosPersona(p,'pie')),sexo:p.sexo})+leyendaEv(eventosPersona(p,'pie')):'<div class="panel">No hay horas cargadas.</div>')+
     '<div class="panel resumen"><h4>Docentes con los que trabaja</h4><ul>'+lista.map(t=>'<li><button class="lnk" data-go="docentes" data-id="'+esc(t)+'">'+esc(DOC[t]?DOC[t].nombre:t)+'</button>: '+docs[t]+' bloques</li>').join('')+'</ul></div>';
 }
 
@@ -1177,7 +1206,7 @@ function bloqueDia(tid,fecha){
   }).join('')+'</ul>';
   html+=resumenProfesionales(activos);
   const ot=eventosPro(DOC[tid].horario).filter(e=>e.d===dia&&OTRAS_ET.indexOf(e.t)>=0).sort((a,b)=>mins(a.ini)-mins(b.ini));
-  if(ot.length) html+='<p class="note">Ese día también tiene (no cuenta para cubrir): '+ot.map(e=>esc(rotuloEv(e))+' '+esc(e.ini)+' a '+esc(e.fin)).join('; ')+'.</p>';
+  if(ot.length) html+='<p class="note">Ese día también tiene: '+ot.map(e=>esc(rotuloEv(e))+' '+esc(e.ini)+' a '+esc(e.fin)).join('; ')+'.</p>';
   html+='</section>';
   return html;
 }
@@ -1426,13 +1455,20 @@ function clasesDoc(id){
   const w=TS[id]||emptyWeek(), out=[];
   DIAS.forEach(d=>{
     const l=w[d].filter(x=>!x.el).sort((a,b)=>mins(a.ini)-mins(b.ini));
-    l.forEach(x=>{ const u=out[out.length-1]; if(u&&u.d===d&&u.cid===x.cid&&u.a===x.a&&mins(x.ini)<=mins(u.fin)+10) u.fin=x.fin; else out.push({d,cid:x.cid,a:x.a,ini:x.ini,fin:x.fin}); });
+    l.forEach(x=>{ const u=out[out.length-1]; if(u&&u.d===d&&u.cid===x.cid&&u.a===x.a&&mins(x.ini)<=mins(u.fin)+10) u.fin=x.fin; else out.push({d,cid:x.cid,a:x.a,ini:x.ini,fin:x.fin,sala:x.sala||''}); });
   });
   return out;
 }
+const SALAS_SUG=['Sala de computación','Gimnasio','Laboratorio de ciencias','Biblioteca (CRA)','Patio','Sala de música','Sala de artes','Auditorio'];
+function asignarSalaClase(k,val){
+  const q=k.split('|'), cid=q[0], d=q[1], ini=q[2], fin=q[3], c=D.cursos[cid]; if(!c) return;
+  val=(val||'').trim();
+  c.blocks.forEach(b=>{ if(mins(b.ini)>=mins(ini)&&mins(b.fin)<=mins(fin)&&b.c[d]&&!b.c[d].el){ if(!val||norm(val)===norm(c.sala||'')) delete b.c[d].sala; else b.c[d].sala=val; } });
+  marcarSucio();
+}
 function listaClasesDoc(id){
   const cl=clasesDoc(id), el=(TS[id]?DIAS.flatMap(d=>TS[id][d].filter(x=>x.el)):[]).length;
-  return cl.map(c=>'<li><span>'+DIA_N[c.d]+' '+esc(c.ini)+' a '+esc(c.fin)+'. '+esc(cname(c.cid))+'. '+esc(c.a)+'</span><button type="button" data-act="dclasequitar" data-k="'+esc([c.cid,c.d,c.ini,c.fin].join('|'))+'" aria-label="Quitar esta clase">×</button></li>').join('')+
+  return cl.map(c=>'<li><span>'+DIA_N[c.d]+' '+esc(c.ini)+' a '+esc(c.fin)+'. '+esc(cname(c.cid))+'. '+esc(c.a)+'<br><label class="sala-edit">'+svgIc('sala')+' <input class="in-sala" data-ks="'+esc([c.cid,c.d,c.ini,c.fin].join('|'))+'" list="dl-salas" value="'+esc(c.sala)+'" placeholder="Sala (ej. Sala de computación, Gimnasio)" autocomplete="off" aria-label="Sala de esta clase"></label></span><button type="button" data-act="dclasequitar" data-k="'+esc([c.cid,c.d,c.ini,c.fin].join('|'))+'" aria-label="Quitar esta clase">×</button></li>').join('')+
     (el?'<li class="mini"><span>Además tiene '+el+' bloques de electivo. Se editan en la sección Electivos.</span></li>':'');
 }
 function formClaseDoc(){
@@ -1457,6 +1493,7 @@ function formPersona(){
   let h='<div class="panel"><h3>'+(nuevo?'Nuevo '+rotulo:esc(f.nombre0||f.nombre))+'</h3>'+
     '<form data-form="persona"><label class="fld"><span>Nombre completo</span><input id="pf-nombre" value="'+esc(f.nombre)+'" required autocomplete="off"></label>'+
     '<label class="fld"><span>Mujer u hombre (para el ícono de entrada y salida)</span><select id="pf-sexo"><option value="">Sin indicar</option><option value="f"'+(f.sexo==='f'?' selected':'')+'>Mujer</option><option value="m"'+(f.sexo==='m'?' selected':'')+'>Hombre</option></select></label>'+
+    '<label class="fld"><span>Horas de contrato (con 43 o 44 horas la colación cuenta como tiempo de trabajo)</span><input id="pf-horas" type="number" min="1" max="45" value="'+esc(f.horas||'')+'" placeholder="Ej. 44"></label>'+
     (pro?'<label class="fld"><span>Cargo</span><input id="pf-cargo" value="'+esc(f.cargo||'')+'" placeholder="Ej. Psicopedagoga" autocomplete="off"></label>':'')+
     (pie?'':'<label class="fld"><span>Nombre corto (como aparece en los horarios)</span><input id="pf-abrev" value="'+esc(f.abrev)+'" autocomplete="off"></label>'+
       '<label class="fld"><span>Departamento</span><input id="pf-dept" list="pf-depts" value="'+esc(f.dept)+'" autocomplete="off"></label><datalist id="pf-depts">'+depts.map(d=>'<option value="'+esc(d)+'">').join('')+'</datalist>')+
@@ -1464,7 +1501,7 @@ function formPersona(){
     '<div class="btn-row"><button class="btn sig" type="submit">'+(nuevo?'Agregar':'Aplicar cambios')+'</button>'+(nuevo?'<button class="btn" type="button" data-act="pcancel">Cancelar</button>':'')+'</div></form>';
   if(pro&&!nuevo){const p=PIE[f.id]; h+='<hr class="sep"><h3>Horario de atención</h3><p class="help">'+eventosPro(p&&p.horario).length+' entradas. Puede quitar o agregar una atención, o reemplazar todo el horario copiándolo desde Excel en la sección Pegar desde Excel.</p><ul class="sel-list" style="max-height:260px;overflow:auto">'+listaEntradasPro(p)+'</ul>'+formEntradaPro();}
   if(C.tipo==='doc'&&!nuevo){const p=DOC[f.id]; const cl=clasesDoc(f.id);
-    h+='<hr class="sep"><h3>Clases</h3><p class="help">'+cl.length+' clases en cursos. Puede quitar una clase o agregar otra. Para cargar todo el horario junto, use Pegar desde Excel.</p><ul class="sel-list" style="max-height:260px;overflow:auto">'+listaClasesDoc(f.id)+'</ul>'+formClaseDoc()+
+    h+='<datalist id="dl-salas">'+SALAS_SUG.map(s=>'<option value="'+esc(s)+'">').join('')+'</datalist><hr class="sep"><h3>Clases y salas</h3><p class="help">'+cl.length+' clases en cursos. En cada una puede indicar la sala si el docente está en otro lugar (computación, gimnasio, etc.); si la deja vacía se usa la sala del curso. Puede quitar una clase o agregar otra. Para cargar todo el horario junto, use Pegar desde Excel.</p><ul class="sel-list" style="max-height:260px;overflow:auto">'+listaClasesDoc(f.id)+'</ul>'+formClaseDoc()+
       '<hr class="sep"><h3>Otras horas</h3><p class="help">Preparación, reuniones, colación y otras actividades. No se consideran para cubrir permisos.</p><ul class="sel-list" style="max-height:260px;overflow:auto">'+(listaOtrasDoc(p)||'<li class="mini"><span>Todavía no hay otras horas cargadas.</span></li>')+'</ul>'+formOtraDoc();}
   if(!nuevo){
     const u=usos(f.id);
@@ -1499,13 +1536,13 @@ function aplicarPersona(){
   const lista=pie?D.pie:D.docentes;
   if(lista.some(p=>p.id!==f.id&&norm(p.nombre)===norm(nombre))){f.err='Ya existe alguien con ese nombre.';return false;}
   if(!f.id){
-    const o={id:slug(nombre),nombre,ciclos:[]}; if(f.sexo) o.sexo=f.sexo;
+    const o={id:slug(nombre),nombre,ciclos:[]}; if(f.sexo) o.sexo=f.sexo; if(+f.horas>0) o.horas=Math.round(+f.horas);
     if(!pie){o.abrev=(f.abrev||'').trim()||nombre;o.dept=(f.dept||'').trim()||null;o.en_listado=true;}
     else if(pro){o.tipo='profesional';o.cargo=(f.cargo||'').trim()||'Profesional PIE';o.horario=[];}
     else o.tipo='docente';
     lista.push(o); f.id=o.id;
   }else{
-    const o=lista.find(p=>p.id===f.id); o.nombre=nombre; if(f.sexo) o.sexo=f.sexo; else delete o.sexo;
+    const o=lista.find(p=>p.id===f.id); o.nombre=nombre; if(f.sexo) o.sexo=f.sexo; else delete o.sexo; if(+f.horas>0) o.horas=Math.round(+f.horas); else delete o.horas;
     if(!pie){o.abrev=(f.abrev||'').trim()||nombre;o.dept=(f.dept||'').trim()||null;}
     if(pro) o.cargo=(f.cargo||'').trim()||'Profesional PIE';
   }
@@ -1581,7 +1618,7 @@ async function cargarServidor(){
     ['docentes','pie'].forEach(k=>D[k].forEach(p=>{ if(!p.jornada){const b=BASE[k].find(x=>x.id===p.id); if(b&&b.jornada) p.jornada=clonar(b.jornada);} }));
         /* v19: se incorporan, sin tocar lo editado, Romina Retamal (PIE) y los Electivo 4 de Educación física si el servidor aún no los tiene */
     /* v21: Colaborativo PIE pasa a ser un tipo propio (distinto de Colaboración) y se completa el sexo de cada persona */
-    ['docentes','pie'].forEach(k=>D[k].forEach(p=>{ (p.horario||[]).forEach(h=>{ if(h.t==='colab'&&/colaborativ/i.test(h.det||'')) h.t='colabpie'; }); if(!p.sexo){const b=BASE[k].find(x=>x.id===p.id); if(b&&b.sexo) p.sexo=b.sexo;} }));
+    ['docentes','pie'].forEach(k=>D[k].forEach(p=>{ (p.horario||[]).forEach(h=>{ if(h.t==='colab'&&/colaborativ/i.test(h.det||'')) h.t='colabpie'; }); {const b=BASE[k].find(x=>x.id===p.id); if(b){ if(!p.sexo&&b.sexo) p.sexo=b.sexo; if(!p.horas&&b.horas) p.horas=b.horas; }} }));
     let mig=false;
     if(!D.pie.some(x=>x.id==='R.Retamal')){ const b=BASE.pie.find(x=>x.id==='R.Retamal'); if(b){ D.pie.push(clonar(b)); mig=true;
       Object.keys(BASE.cursos).forEach(cid=>{ const c=D.cursos[cid]; if(!c) return; BASE.cursos[cid].blocks.forEach(bb=>Object.keys(bb.c).forEach(dd=>{ const q=(bb.c[dd].p||[]).find(z=>z.id==='R.Retamal'); if(!q) return; const t=c.blocks.find(x=>x.ini===bb.ini&&x.fin===bb.fin); const e=t&&t.c[dd]; if(e&&!e.el){ e.p=e.p||[]; if(!e.p.some(z=>z.id==='R.Retamal')) e.p.push({id:'R.Retamal',ar:!!q.ar}); } })); }); } }
@@ -1756,7 +1793,7 @@ function bCalendario(ctx,y,dib,evs,hoyIdx,Kp,jor,sx){
   jor=jor||jornadaDe(null,evs);
   const todos=evs.map(e=>mins(e.ini)).concat(evs.map(e=>mins(e.fin))); DIAS.forEach(d=>{if(jor[d]) todos.push(mins(jor[d].ini),mins(jor[d].fin));});
   const t0=Math.floor(Math.min.apply(null,todos)/60)*60, t1=Math.ceil(Math.max.apply(null,todos)/60)*60;
-  const hh=92, LH=16;
+  const hh=112, LH=16;
   /* escala vertical: la mínima en que todo el texto de cada tarjeta cabe completo */
   let K=Kp||1.55; const info=[];
   DIAS.forEach(d=>{
@@ -1767,13 +1804,18 @@ function bCalendario(ctx,y,dib,evs,hoyIdx,Kp,jor,sx){
       info.push({d,z,pe,ew});
     });
   });
+  const totSem=DIAS.reduce((t,d)=>t+minutosDia(jor,evs,d),0); const y00=y;
+  if(totSem){ y+=46; if(dib){ const tx='Horas de trabajo en la semana: '+hmTxt(totSem)+(jor._inc?' (colación incluida)':''); ctx.font='800 19px '+FONT; const w=ctx.measureText(tx).width; rr(ctx,x0,y00+2,w+52,34,12); ctx.fillStyle='#e8f1fb'; ctx.fill(); dibIcono(ctx,'reloj',x0+12,y00+8,22,'#1477c2'); ctx.fillStyle='#0c2d5a'; ctx.fillText(tx,x0+42,y00+26); } }
   if(dib){
     DIAS.forEach((d,i)=>{const x=x0+wT+gap+i*(wD+gap); rr(ctx,x,y,wD,hh,10); const hoy=(i===hoyIdx); ctx.fillStyle=hoy?'#0c2d5a':'#eef3f9'; ctx.fill(); ctx.fillStyle=hoy?'#fff':'#0c2d5a'; ctx.font='800 19px '+FONT; ctx.fillText(DIA_N[d],x+12,y+24);
       if(jor[d]){
-        [['entrada'+sexoK(sx),'Entrada',jor[d].ini,'#d6f5e0','#0d6b33','#2ecc71','#05341a'],['salida'+sexoK(sx),'Salida',jor[d].fin,'#ffe0dd','#a1241b','#ff8a80','#4d0b06']].forEach((q,k)=>{
-          const py=y+32+k*27, bg=hoy?q[5]:q[3], fg=hoy?q[6]:q[4]; ctx.font='800 12.5px '+FONT; const w1=ctx.measureText(q[1]+' ').width; ctx.font='600 12.5px '+FONT; const w2=ctx.measureText(q[2]).width;
-          rr(ctx,x+10,py,w1+w2+48,24,12); ctx.fillStyle=bg; ctx.fill(); dibIcono(ctx,q[0],x+14,py+1,22,fg); ctx.fillStyle=fg; ctx.font='800 13px '+FONT; ctx.fillText(q[1],x+40,py+16); ctx.font='600 13px '+FONT; ctx.fillText(q[2],x+40+w1,py+16);
+        [['entrada'+sexoK(sx),'Entrada',jor[d].ini,'#1faa59','#2fd27a'],['salida'+sexoK(sx),'Salida',jor[d].fin,'#d93a41','#ff7a73']].forEach((q,k)=>{
+          const cx=x+10+k*(wD/2-2)+17, cy=y+52; ctx.save(); const g=ctx.createLinearGradient(cx-17,cy-17,cx+17,cy+17); g.addColorStop(0,q[4]); g.addColorStop(1,q[3]); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,17,0,Math.PI*2); ctx.fill(); ctx.restore();
+          dibIcono(ctx,q[0],cx-12,cy-12,24,'#fff');
+          ctx.fillStyle=hoy?'#dbe8f6':'#52667f'; ctx.font='600 11.5px '+FONT; ctx.fillText(q[1],cx+22,cy-3); ctx.fillStyle=hoy?'#fff':'#10243f'; ctx.font='800 17px '+FONT; ctx.fillText(q[2],cx+22,cy+15);
         });
+        const tt=hmTxt(minutosDia(jor,evs,d))+' de trabajo'+(jor._inc?' con colación':''); ctx.font='700 13px '+FONT; const tw=ctx.measureText(tt).width;
+        rr(ctx,x+10,y+80,tw+34,22,8); ctx.fillStyle=hoy?'rgba(255,255,255,.2)':'rgba(20,119,194,.13)'; ctx.fill(); dibIcono(ctx,'reloj',x+16,y+84,14,hoy?'#fff':'#0c4a82'); ctx.fillStyle=hoy?'#fff':'#0c4a82'; ctx.fillText(tt,x+34,y+96);
       }});
     const top=y+hh+gap;
     for(let m=t0;m<=t1;m+=60){const yy=top+(m-t0)*K; ctx.fillStyle='#52667f'; ctx.font='500 14px '+FONT; ctx.textAlign='right'; ctx.fillText(hhmm(m),x0+wT-8,yy+5); ctx.textAlign='left'; ctx.strokeStyle='#e6edf5'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x0+wT,yy); ctx.lineTo(IMG_W-IMG_M,yy); ctx.stroke();}
@@ -1898,7 +1940,7 @@ function especificacion(tipo,id){
     return {archivo:'horario-'+id,titulo:'Horario de '+p.nombre,texto:'Horario de '+p.nombre+' (Colegio Marina de Chile)',bloques:[
       ['t','Horario docente',p.nombre,[(p.dept?p.dept:''),(j?'Jefatura de '+j.map(cname).join(' y '):'')].filter(Boolean)],
       ...ausBloques(id),(eventosDoc(p).length?['c',eventosDoc(p),1.7,jornadaDe(p,eventosDoc(p)),p.sexo]:['n','Este docente no tiene horas en el horario.']),['l',itemsLeyenda(eventosDoc(p))],
-      ['n','PIE: profesional que acompaña al docente en ese bloque. AR: atiende en Aula de Recursos.'+(eventosDoc(p).some(e=>e.t!=='clase')?' Las horas de preparación, reuniones, colación y otras actividades no se consideran para cubrir permisos.':'')]]};
+      ['n','PIE: profesional que acompaña al docente en ese bloque. AR: atiende en Aula de Recursos.']]};
   }
   if(tipo==='pie'){
     const p=PIE[id];
@@ -1910,7 +1952,7 @@ function especificacion(tipo,id){
     }
     const w=PS[id]||emptyWeek();
     return {archivo:'horario-'+id,titulo:'Horario de '+p.nombre,texto:'Horario de '+p.nombre+' (Colegio Marina de Chile)',bloques:[
-      ['t','Docente PIE',p.nombre,['Apoyo a los cursos y docentes indicados']],...ausBloques(id),(eventosPersona(p,'pie').length?['c',eventosPersona(p,'pie'),1.7,jornadaDe(p,eventosPersona(p,'pie')),p.sexo]:['n','Todavía no hay horas cargadas.']),['l',itemsLeyenda(eventosPersona(p,'pie'))],['n','AR: atiende en Aula de Recursos. Las horas de colaboración, reuniones, almuerzo y otras actividades sirven solo para saber en qué está la persona.']]};
+      ['t','Docente PIE',p.nombre,['Apoyo a los cursos y docentes indicados']],...ausBloques(id),(eventosPersona(p,'pie').length?['c',eventosPersona(p,'pie'),1.7,jornadaDe(p,eventosPersona(p,'pie')),p.sexo]:['n','Todavía no hay horas cargadas.']),['l',itemsLeyenda(eventosPersona(p,'pie'))]]};
   }
   if(tipo==='electivo'){
     const g=GR[id], sl=unirSlots(g.slots), pies=pieDeGrupo(g);
@@ -1997,7 +2039,7 @@ async function generarPDF(tipo,id){
   const E=2, PWu=IMG_W, PHu=Math.round(IMG_W*841.89/595.28), PIE=46, CONT=78;
   const util1=PHu-PIE, utilN=PHu-PIE-CONT;
   // cortes sin partir filas
-  const cortes=[]; let ini=0; const ajuste=(r.H>util1&&r.H<=util1*1.16)?util1/r.H:1;
+  const cortes=[]; let ini=0; const ajuste=(r.H>util1&&util1/r.H>=0.45)?util1/r.H:1; /* todo en una página; solo si quedaría ilegible se reparte */
   while(ini<r.H-1){
     const util=ini===0?util1:utilN; const lim=ini+util;
     if(r.H<=lim+0.5||ajuste<1){cortes.push([ini,r.H]); break;}
@@ -2252,10 +2294,11 @@ function clasificar(texto,esRecreo){
 const TIME_RX=/(\d{1,2})[:.](\d{2})\s*(?:a|-|–|A)\s*(\d{1,2})[:.](\d{2})/;
 const DIAS_FULL={LUNES:'Lu',MARTES:'Ma',MIERCOLES:'Mi',JUEVES:'Ju',VIERNES:'Vi'};
 function leerHorarioPersona(g,ext){
-  const rows=[]; let daycols=null, prev=null, tail=false; const nombres=[]; const jor={};
+  const rows=[]; let daycols=null, prev=null, tail=false, contrato=null; const nombres=[]; const jor={};
   for(let r=0;r<g.length;r++){
     const fila=g[r]||[];
     for(let c=0;c<fila.length-1;c++){ if(/^NOMBRE( DOCENTE)?:?$/.test(normU(fila[c]))&&fila[c+1]&&!/^N\.ESCARES$/i.test(fila[c+1])&&nombres.indexOf(fila[c+1])<0) nombres.push(fila[c+1]); }
+    for(let c=0;c<fila.length-1;c++){ if(normU(fila[c])==='HORAS CONTRATO'){ const t=fila.slice(c+1,c+4).map(x=>parseFloat(String(x).replace(',','.'))).filter(x=>isFinite(x)).reduce((a,x)=>a+x,0); if(t>0&&t<=45) contrato=Math.round(t); } }
     const cols={}; fila.forEach((x,c)=>{const k=DIAS_FULL[normU(x)]; if(k) cols[k]=c;});
     if(Object.keys(cols).length>=4){ daycols=cols; prev=null; continue; }
     if(!daycols) continue;
@@ -2305,7 +2348,7 @@ function leerHorarioPersona(g,ext){
   out.forEach(e=>delete e._k);
   nombres.sort((a,b)=>b.split(/\s+/).length-a.split(/\s+/).length);
   const jornada={}; DIAS.forEach(d=>{ if(jor[d]&&jor[d].ini&&jor[d].fin&&mins(jor[d].ini)<mins(jor[d].fin)) jornada[d]={ini:jor[d].ini,fin:jor[d].fin}; });
-  out.jornada=jornada;
+  out.jornada=jornada; out.horas=contrato;
   return {entradas:out,nombre:nombres[0]||null,nombres,jornada};
 }
 function buscarPorNombre(I,texto){
@@ -2338,7 +2381,7 @@ function derivarPro(X,p){
 }
 function aplicarPersonaX(X,tipo,id,entradas,opts){
   let omitidos=0;
-  { const J=entradas.jornada, pj=(tipo==='doc'?X.docentes:X.pie).find(q=>q.id===id); if(pj&&J&&Object.keys(J).length) pj.jornada=J; }
+  { const J=entradas.jornada, pj=(tipo==='doc'?X.docentes:X.pie).find(q=>q.id===id); if(pj&&J&&Object.keys(J).length) pj.jornada=J; if(pj&&entradas.horas) pj.horas=entradas.horas; }
   if(tipo==='pro'){
     const p=X.pie.find(q=>q.id===id);
     p.horario=entradas.filter(e=>['AC','AR','taller','priorizados','colab','colabpie','colacion','nolectivo'].indexOf(e.t)>=0).map(e=>({d:e.d,ini:e.ini,fin:e.fin,t:e.t,cs:e.cs,a:e.a,s:e.s}));
@@ -2797,7 +2840,7 @@ app.addEventListener('click',e=>{
   if(act==='dia'){S.dia=a.dataset.v; document.querySelectorAll('.sched,.cal').forEach(t=>t.dataset.dia=S.dia); document.querySelectorAll('.day-pills button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===S.dia)); ajustarCal();}
   else if(act==='rail'){S.railOpen=!S.railOpen; const r=document.querySelector('.rail'); r.classList.toggle('open',S.railOpen); a.setAttribute('aria-expanded',S.railOpen); a.lastChild.textContent=S.railOpen?'Cerrar lista':'Cambiar';}
   else if(act==='print'){window.print();}
-  else if(act==='editdoc'){C.tipo='doc';C.q='';const p=D.docentes.find(x=>x.id===a.dataset.id);if(p){C.form={id:p.id,nombre:p.nombre,nombre0:p.nombre,abrev:p.abrev||'',dept:p.dept||'',cargo:p.cargo||'',sexo:p.sexo||'',err:''};}C.confirm=null;ir('config','personas');window.scrollTo({top:0});}
+  else if(act==='editdoc'){C.tipo='doc';C.q='';const p=D.docentes.find(x=>x.id===a.dataset.id);if(p){C.form={id:p.id,nombre:p.nombre,nombre0:p.nombre,abrev:p.abrev||'',dept:p.dept||'',cargo:p.cargo||'',sexo:p.sexo||'',horas:p.horas||'',err:''};}C.confirm=null;ir('config','personas');window.scrollTo({top:0});}
   else if(act==='compartir'){compartir(a.dataset.tipo,a.dataset.id);}
   else if(act==='pdf'){descargarPDF(a.dataset.tipo,a.dataset.id);}
   else if(act==='ausdel'){D.ausencias=(D.ausencias||[]).filter(x=>x.id!==a.dataset.id); marcarSucio(); render(); aviso('Registro quitado');}
@@ -2810,7 +2853,7 @@ app.addEventListener('click',e=>{
   else if(act==='salir'){S.auth={ok:false,clave:''};guardaSS('hclave',null);render();}
   else if(act==='recargar'){recargar();}
   else if(act==='ptipo'){C.tipo=a.dataset.v;C.form=null;C.q='';C.confirm=null;render();}
-  else if(act==='pers'){const lista=C.tipo==='doc'?D.docentes:D.pie;const p=lista.find(x=>x.id===a.dataset.id);if(p){C.form={id:p.id,nombre:p.nombre,nombre0:p.nombre,abrev:p.abrev||'',dept:p.dept||'',cargo:p.cargo||'',sexo:p.sexo||'',err:''};C.confirm=null;repintarPersonas();}}
+  else if(act==='pers'){const lista=C.tipo==='doc'?D.docentes:D.pie;const p=lista.find(x=>x.id===a.dataset.id);if(p){C.form={id:p.id,nombre:p.nombre,nombre0:p.nombre,abrev:p.abrev||'',dept:p.dept||'',cargo:p.cargo||'',sexo:p.sexo||'',horas:p.horas||'',err:''};C.confirm=null;repintarPersonas();}}
   else if(act==='pnuevo'){C.form={id:null,nombre:'',abrev:'',dept:'',cargo:'',sexo:'',err:''};C.confirm=null;repintarPersonas();const i=document.getElementById('pf-nombre');if(i)i.focus();}
   else if(act==='pcancel'){C.form=null;repintarPersonas();}
   else if(act==='pconf'){C.confirm='del';repintarPersonas();}
@@ -2884,6 +2927,7 @@ app.addEventListener('input',e=>{
   else if(t.id==='pf-abrev'&&C.form){C.form.abrev=t.value;}
   else if(t.id==='pf-dept'&&C.form){C.form.dept=t.value;}
   else if(t.id==='pf-sexo'&&C.form){C.form.sexo=t.value;}
+  else if(t.id==='pf-horas'&&C.form){C.form.horas=t.value;}
   else if(t.id==='pf-cargo'&&C.form){C.form.cargo=t.value;}
   else if(t.id==='eg-nombre'&&C.eg){C.eg.nombre=t.value;}
   else if(t.id==='eg-sala'&&C.eg){C.eg.sala=t.value;}
@@ -2909,6 +2953,7 @@ app.addEventListener('change',e=>{
     if(t.checked) S.off.delete(t.dataset.k); else S.off.add(t.dataset.k);
     refrescarResultados();
   }
+  else if(t.classList&&t.classList.contains('in-sala')){asignarSalaClase(t.dataset.ks,t.value);refrescarSavebar();aviso('Sala actualizada');}
   else if(t.id==='cfcurso'){C.curso=t.value;render();}
   else if(t.id==='cfjefe'){D.cursos[C.curso].jefe=t.value||null;marcarSucio();render();}
   else if(t.dataset&&t.dataset.act==='hora'){
@@ -2983,6 +3028,9 @@ function copiar(txt){
 }
 function aviso(m,ms){const t=document.getElementById('toast');t.textContent=m;t.hidden=false;clearTimeout(aviso.t);aviso.t=setTimeout(()=>t.hidden=true,ms||2200);}
 window.addEventListener('hashchange',render);
+/* al imprimir, todo el horario se ajusta a una sola hoja */
+window.addEventListener('beforeprint',()=>{ const l=document.querySelector('.layout'); if(!l) return; l.style.zoom=''; const h=l.scrollHeight, w=l.scrollWidth; const z=Math.min(1,1000/(h*1.08),700/Math.max(w,1)*1.35); if(z<1) l.style.zoom=Math.max(.3,z).toFixed(3); });
+window.addEventListener('afterprint',()=>{ const l=document.querySelector('.layout'); if(l) l.style.zoom=''; });
 let _rz; window.addEventListener('resize',()=>{clearTimeout(_rz);_rz=setTimeout(()=>ajustarCal(),150);});
 if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>ajustarCal());
 window.addEventListener('beforeunload',e=>{ if(S.dirty){ e.preventDefault(); e.returnValue=''; } });
