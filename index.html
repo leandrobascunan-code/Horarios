@@ -463,6 +463,36 @@ dialog::backdrop{background:rgba(12,45,90,.6)}
 .cal-h .jh small{display:inline;font-size:10.5px;opacity:.8;color:inherit}
 .jsem small{font-size:12.5px;opacity:.75}
 
+/* ===== v24: cobertura por bloques ===== */
+.cal.cv{grid-template-columns:52px minmax(0,1fr);min-width:0}
+.cv-wrap{padding:12px 12px 12px 6px}
+.ev.cv-ev{padding:7px 12px 8px 13px;font-size:13px;line-height:1.3;display:grid;grid-template-columns:minmax(0,1fr);gap:6px 14px;align-content:start}
+.ev.cv-ev .cv-info small{font-size:12px}
+.ev.cv-ev .cv-info b{font-size:14.5px}
+.ev.cv-ev .cov-check{position:absolute;right:9px;top:7px;width:20px;height:20px;accent-color:var(--navy);z-index:2}
+.ev.cv-ev.off{opacity:.42}
+.cv-who{display:flex;flex-direction:column;gap:5px;background:rgba(255,255,255,.82);border-left:4px solid var(--pie);border-radius:9px;padding:6px 9px;align-self:start}
+.cv-who.sin{border-left-color:var(--sig);background:rgba(255,255,255,.9)}
+.cv-who .cv-lbl{font-weight:800;font-size:11.5px;color:#064f5d;display:flex;align-items:center;gap:4px}
+.cv-who .cv-lbl .ic{width:13px;height:13px}
+.cv-who .bad{font-weight:700;color:#8f251c;font-size:13px}
+.cv-who .hint{font-size:12px;color:var(--ink-2)}
+.cv-who .alert{font-size:12px;color:var(--warn);font-weight:600}
+.cv-who .t2{display:flex;flex-direction:column;gap:3px;margin-top:2px;padding-top:4px;border-top:1px dashed var(--line)}
+.cv-who .pie-chip{font-size:12px}
+.ev.ghost{opacity:.62}
+.ev.ghost b,.ev.ghost small{display:inline;margin-right:6px}
+@media (min-width:900px){
+  .ev.cv-ev{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);padding-right:40px}
+}
+@media print{ .cal.cv{grid-template-columns:52px minmax(0,1fr)!important} .cov-check{display:none!important} }
+
+/* ===== v24: crédito de diseño (pequeño, en la misma línea del pie) ===== */
+.foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 22px}
+.cred{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--ink-2);white-space:nowrap;margin-left:auto}
+.cred b{font-weight:700;color:var(--navy);background:linear-gradient(transparent 62%,rgba(227,167,42,.38) 62%)}
+.cred-m{font-style:normal;font:800 8.5px/1 var(--fh,inherit);letter-spacing:.3px;width:20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;color:#f6cf62;background:linear-gradient(135deg,#0c2d5a,#1477c2);box-shadow:0 0 0 1.5px #e3a72a}
+
 </style>
 </head>
 <body>
@@ -493,7 +523,7 @@ const API_URL = (window.APP_CONFIG && window.APP_CONFIG.API_URL) || "";
 const app = document.getElementById('app');
 if(!window.HORARIOS){ app.innerHTML='<div class="layout one"><div class="panel"><h2>No se cargaron los datos</h2><p>Falta el archivo data.js junto a index.html.</p></div></div>'; return; }
 const clonar = o => JSON.parse(JSON.stringify(o));
-const VERSION_APP = 'v23';
+const VERSION_APP = 'v24';
 const BASE = clonar(window.HORARIOS);
 let D = clonar(BASE);
 
@@ -1019,6 +1049,7 @@ const salasDe=a=>uniq(a.filter(Boolean));
 /* jornada: entrada y salida del día. Usa la cargada desde el Excel; si no hay, el primer y último bloque */
 function jornadaDe(p,evs){
   const out={}; out._inc=!!(p&&p.horas>=43); /* con contrato de 43 o 44 horas la colación cuenta como tiempo de trabajo */
+  out._h=(p&&+p.horas>0)?+p.horas:0; out._hd=(p&&p.hdet)||null; /* total semanal = horas de contrato (parte superior del horario) */
   DIAS.forEach(d=>{
     const j=p&&p.jornada&&p.jornada[d];
     if(j&&j.ini&&j.fin){out[d]={ini:j.ini,fin:j.fin,real:true};return;}
@@ -1026,6 +1057,16 @@ function jornadaDe(p,evs){
     out[d]={ini:hhmm(Math.min.apply(null,e.map(x=>mins(x.ini)))),fin:hhmm(Math.max.apply(null,e.map(x=>mins(x.fin)))),real:false};
   });
   return out;
+}
+/* total semanal: es el de contrato (el que figura en la parte superior del horario); sin contrato, la suma de los días solo si la jornada es real */
+function semanaInfo(jor,evs){
+  if(jor._h){
+    const hd=jor._hd, p=[]; if(hd){ if(hd.sr) p.push(hd.sr+' h S.R.'); if(hd.sep) p.push(hd.sep+' h SEP'); if(hd.pie) p.push(hd.pie+' h PIE'); }
+    return {txt:hmTxt(jor._h*60), det:p.join(' · '), contrato:true};
+  }
+  const con=DIAS.filter(d=>jor[d]);
+  if(!con.length||con.some(d=>!jor[d].real)) return null;
+  return {txt:hmTxt(con.reduce((t,d)=>t+minutosDia(jor,evs,d),0)), det:'', contrato:false};
 }
 function calendario(horario,op){
   op=op||{};
@@ -1038,7 +1079,7 @@ function calendario(horario,op){
   const K=op.K||1.3, tot=t1-t0;
   const alto='calc(var(--kk)*'+tot+'*1px)';
   let axis='<div class="cal-axis" style="height:'+alto+'">'; for(let m=t0;m<=t1;m+=60) axis+='<span style="top:calc(var(--kk)*'+(m-t0)+'*1px)">'+hhmm(m)+'</span>'; axis+='</div>';
-  let h='<div class="cal-wrap" data-k="'+K+'" style="--kk:'+K+'"><div class="cal" data-dia="'+S.dia+'"><div></div>'+DIAS.map(d=>'<div class="cal-h'+(d===HOY?' hoy':'')+'" data-d="'+d+'"><span>'+DIA_N[d]+'</span>'+(jor[d]?'<span class="jor"><span class="jt in" title="Inicio de la jornada"><i class="jb">'+svgIc('entrada'+sexoK(op.sexo))+'</i><span class="jx"><em>Entrada</em><b>'+esc(jor[d].ini)+'</b></span></span><span class="jt out" title="Término de la jornada"><i class="jb">'+svgIc('salida'+sexoK(op.sexo))+'</i><span class="jx"><em>Salida</em><b>'+esc(jor[d].fin)+'</b></span></span></span><span class="jh" title="Horas de trabajo del día, sin colación">'+svgIc('reloj')+' <b>'+hmTxt(minutosDia(jor,evs,d))+'</b> de trabajo'+(jor._inc?' <small>con colación</small>':'')+'</span>':'')+'</div>').join('')+axis;
+  let h='<div class="cal-wrap" data-k="'+K+'" style="--kk:'+K+'"><div class="cal" data-dia="'+S.dia+'"><div></div>'+DIAS.map(d=>'<div class="cal-h'+(d===HOY?' hoy':'')+'" data-d="'+d+'"><span>'+DIA_N[d]+'</span>'+(jor[d]?'<span class="jor"><span class="jt in" title="Inicio de la jornada"><i class="jb">'+svgIc('entrada'+sexoK(op.sexo))+'</i><span class="jx"><em>Entrada</em><b>'+esc(jor[d].ini)+'</b></span></span><span class="jt out" title="Término de la jornada"><i class="jb">'+svgIc('salida'+sexoK(op.sexo))+'</i><span class="jx"><em>Salida</em><b>'+esc(jor[d].fin)+'</b></span></span></span>'+(jor[d].real?'<span class="jh" title="Horas del día según su entrada y salida">'+svgIc('reloj')+' <b>'+hmTxt(minutosDia(jor,evs,d))+'</b> de trabajo'+(jor._inc?' <small>con colación</small>':'')+'</span>':''):'')+'</div>').join('')+axis;
   DIAS.forEach(d=>{
     const ev=lanes(evs.filter(e=>e.d===d));
     h+='<div class="cal-col" data-d="'+d+'" style="height:'+alto+';--hh:calc(var(--kk)*60px)">'+(jor[d]?'<div class="jfuera ini" style="height:calc(var(--kk)*'+(mins(jor[d].ini)-t0)+'*1px)"></div><div class="jfuera fin" style="top:calc(var(--kk)*'+(mins(jor[d].fin)-t0)+'*1px);bottom:0"></div>':'')+ev.map(x=>{
@@ -1060,15 +1101,15 @@ function calendario(horario,op){
         (soft?'<b>'+ic+' '+(e.t==='colacion'?'Almuerzo':esc(rotuloEv(e)))+'</b><small>'+esc(e.ini+' a '+e.fin)+'</small>':'<small title="'+esc(TIPO_N[e.t])+'">'+ic+' '+((e.t==='AC'||e.t==='AR')?'':esc(TIPO_N[e.t])+' · ')+esc(e.ini+' a '+e.fin)+'</small><b>'+(cs||esc(e.det||e.a||'Sin curso indicado'))+'</b>'+(det&&cs?'<small>'+esc(det)+'</small>':'')+(salas.length?'<small class="sala">'+svgIc('sala')+' '+esc(salas.map(salaFmt).join(' / '))+'</small>':''))+'</div>';
     }).join('')+'</div>';
   });
-  const totSem=DIAS.reduce((t,d)=>t+minutosDia(jor,evs,d),0);
-  const tira=totSem?'<div class="jsem">'+svgIc('reloj')+' Horas de trabajo en la semana: <b>'+hmTxt(totSem)+'</b>'+(jor._inc?' <small>(la colación cuenta como trabajo)</small>':'')+'</div>':'';
+  const si=semanaInfo(jor,evs);
+  const tira=si?'<div class="jsem">'+svgIc('reloj')+' '+(si.contrato?'Total semanal de contrato':'Horas de trabajo en la semana')+': <b>'+si.txt+'</b>'+(si.det?' <small>('+si.det+')</small>':'')+(jor._inc?' <small>· la colación cuenta como trabajo</small>':'')+'</div>':'';
   return (op.sinDias?'':dayPills())+tira+h+'</div></div>'+(op.sinLeyenda?'':leyendaEv(evs));
 }
 /* Hace que ninguna tarjeta quede cortada: estira la escala vertical hasta que todo el texto cabe */
 function ajustarCal(raiz){
   (raiz||document).querySelectorAll('.cal-wrap').forEach(w=>{
     const cal=w.querySelector('.cal'); if(!cal||!cal.offsetParent) return;
-    let k=parseFloat(w.dataset.k)||1.3; const kmax=8;
+    let k=parseFloat(w.dataset.k)||1.3; const kmax=parseFloat(w.dataset.kmax)||8;
     w.style.setProperty('--kk',k);
     for(let it=0;it<10;it++){
       let need=k;
@@ -1143,10 +1184,12 @@ function filasCobertura(tid,dia,fecha){
 }
 /* Segunda opción (si se activa): personas con horas de colaboración a esa hora y sin clases ni atención en ese tramo.
    Primero el equipo PIE (docentes y profesionales), después los docentes. */
+const ciclosDeRow=r=>uniq((r.el?(r.cursos||[]):[r.cid]).map(cicloDeCurso).filter(Boolean));
 function candidatosColab(r,dia,key,tid){
-  const out=[], ya=new Set(r.pie.map(x=>x.id));
+  const out=[], ya=new Set(r.pie.map(x=>x.id)), cic=ciclosDeRow(r);
   const chk=(p,tipo)=>{
     if(tipo==='doc'&&p.id===tid) return; if(ya.has(p.id)) return;
+    if(!cic.length||!(p.ciclos||[]).some(c=>cic.includes(c))) return; /* solo del mismo ciclo del curso */
     if(key&&ausenciaEn(p.id,key)) return;
     const evs=eventosPro(p.horario).filter(e=>e.d===dia);
     const cs=evs.filter(e=>e.t==='colab'&&Math.min(mins(e.fin),mins(r.fin))-Math.max(mins(e.ini),mins(r.ini))>=20);
@@ -1189,26 +1232,42 @@ function bloqueDia(tid,fecha){
   if(!rows.length) return html+'<p class="note">Este docente no tiene clases ese día.</p></section>';
   html+='<div class="day-sum"><span class="pill">'+activos.length+' tramos en '+cursos+(cursos===1?' curso':' cursos')+'</span>'+
     (conPie?'<span class="pill ok">'+conPie+' con profesional PIE</span>':'')+(sin?'<span class="pill bad">'+sin+' sin profesional PIE disponible</span>':'')+(S.inclColab&&sinConT2?'<span class="pill ok">'+sinConT2+' con opción en colaboración</span>':'')+'</div>';
-  html+='<ul class="cov">'+rows.map(r=>{
-    const k=key+'|'+r.cid+'|'+r.ini; const off=S.off.has(k);
-    const choques=choquesDe(r,dia);
-    let quien;
-    const aus=r.aus.map(chipAusP).join(''), t2=r.t2.length?'<div class="t2"><span class="hint">Opción en horario de colaboración (no es su apoyo habitual):</span><div class="pies">'+r.t2.map(chipT2).join('')+'</div></div>':'';
-    if(!r.ok.length){
-      quien='<div class="cov-who">'+aus+'<span class="bad">'+(r.aus.length?'El apoyo PIE de este bloque no está disponible':r.nota==='cambio'?'Sin información de apoyo PIE':'Sin profesional PIE en este bloque')+'</span>'+(r.nota==='cambio'&&!r.aus.length?'<span class="hint">El horario final cambió este bloque y falta confirmar el apoyo.</span>':'')+t2+'</div>';
-    }else{
-      quien='<div class="cov-who">'+pieChips(r.ok)+aus+
-        choques.filter(c=>r.ok.some(x=>x.id===c[0])).map(c=>'<span class="alert">'+esc(shortP(c[0]))+' también figura en '+esc(cname(c[1].cid))+' a la misma hora.</span>').join('')+t2+'</div>';
-    }
-    return '<li class="cov-row'+(r.ok.length?'':' none')+(off?' off':'')+'"><input class="cov-check" type="checkbox" data-act="inc" data-k="'+esc(k)+'"'+(off?'':' checked')+' aria-label="Incluir '+esc(r.ini)+' '+esc(rotuloRow(r))+'">'+
-      '<div class="time">'+esc(r.ini)+' a '+esc(r.fin)+'</div>'+
-      '<div class="what"><b>'+linkRow(r)+'</b><small>'+esc(etiquetaAsig(r))+(r.cursos?'. '+esc(cursosTxt(r.cursos)):'')+(r.co.length?'. Con '+esc(r.co.map(shortD).join(' y ')):'')+'</small></div>'+quien+'</li>';
-  }).join('')+'</ul>';
+  html+=calCobertura(tid,dia,key,rows);
   html+=resumenProfesionales(activos);
-  const ot=eventosPro(DOC[tid].horario).filter(e=>e.d===dia&&OTRAS_ET.indexOf(e.t)>=0).sort((a,b)=>mins(a.ini)-mins(b.ini));
-  if(ot.length) html+='<p class="note">Ese día también tiene: '+ot.map(e=>esc(rotuloEv(e))+' '+esc(e.ini)+' a '+esc(e.fin)).join('; ')+'.</p>';
   html+='</section>';
   return html;
+}
+/* Vista por bloques: el horario del docente ese día, con quién puede cubrir cada tramo */
+function calCobertura(tid,dia,key,rows){
+  const p=DOC[tid];
+  const ot=eventosPro(p.horario).filter(e=>e.d===dia&&OTRAS_ET.indexOf(e.t)>=0);
+  const items=rows.map(r=>({ini:r.ini,fin:r.fin,r:r})).concat(ot.map(e=>({ini:e.ini,fin:e.fin,o:e})));
+  const jor=jornadaDe(p,eventosDoc(p)), jd=jor[dia]&&jor[dia].real?jor[dia]:null;
+  const ms=items.map(i=>mins(i.ini)).concat(items.map(i=>mins(i.fin))); if(jd) ms.push(mins(jd.ini),mins(jd.fin));
+  const t0=Math.floor(Math.min.apply(null,ms)/60)*60, t1=Math.ceil(Math.max.apply(null,ms)/60)*60, tot=t1-t0;
+  const alto='calc(var(--kk)*'+tot+'*1px)';
+  let axis='<div class="cal-axis" style="grid-column:1;grid-row:1;height:'+alto+'">'; for(let m=t0;m<=t1;m+=60) axis+='<span style="top:calc(var(--kk)*'+(m-t0)+'*1px)">'+hhmm(m)+'</span>'; axis+='</div>';
+  const cards=lanes(items).map(x=>{
+    const it=x.e, dur=Math.max(5,mins(it.fin)-mins(it.ini)), w=100/x.n, l=x.lane*w;
+    const pos='top:calc(var(--kk)*'+(mins(it.ini)-t0)+'*1px);height:calc(var(--kk)*'+dur+'*1px - 2px);left:calc('+l+'% + 1px);width:calc('+w+'% - 3px)';
+    if(it.o){
+      const e=it.o, ik=iconoKey(e), ic=ik?svgIc(ik):'';
+      return '<div class="ev ghost k-'+e.t.toLowerCase()+'" data-dur="'+dur+'" title="'+esc(TIPO_N[e.t]+' '+e.ini+' a '+e.fin)+'" style="'+pos+'"><b>'+ic+' '+(e.t==='colacion'?'Almuerzo':esc(rotuloEv(e)))+'</b><small>'+esc(e.ini+' a '+e.fin)+'</small></div>';
+    }
+    const r=it.r, k=key+'|'+r.cid+'|'+r.ini, off=S.off.has(k), sk=r.el?'ele':subjKey(r.a);
+    const sala=salaFmt(r.sala||(r.el?'':salaDeCurso(r.cid))), choques=choquesDe(r,dia);
+    const aus=r.aus.map(chipAusP).join(''), t2=r.t2.length?'<div class="t2"><span class="hint">Opción en horario de colaboración (no es su apoyo habitual):</span><div class="pies">'+r.t2.map(chipT2).join('')+'</div></div>':'';
+    let quien;
+    if(!r.ok.length){
+      quien='<div class="cv-who sin">'+aus+'<span class="bad">'+(r.aus.length?'El apoyo PIE de este bloque no está disponible':r.nota==='cambio'?'Sin información de apoyo PIE':'Sin profesional PIE en este bloque')+'</span>'+(r.nota==='cambio'&&!r.aus.length?'<span class="hint">El horario final cambió este bloque y falta confirmar el apoyo.</span>':'')+t2+'</div>';
+    }else{
+      quien='<div class="cv-who"><span class="cv-lbl">'+svgIc('pie')+' Puede cubrir</span>'+pieChips(r.ok)+aus+choques.filter(c=>r.ok.some(y=>y.id===c[0])).map(c=>'<span class="alert">'+esc(shortP(c[0]))+' también figura en '+esc(cname(c[1].cid))+' a la misma hora.</span>').join('')+t2+'</div>';
+    }
+    return '<div class="ev cv-ev s-'+sk+(off?' off':'')+'" data-dur="'+dur+'" style="'+pos+'"><input class="cov-check" type="checkbox" data-act="inc" data-k="'+esc(k)+'"'+(off?'':' checked')+' aria-label="Incluir '+esc(r.ini)+' '+esc(rotuloRow(r))+'">'+
+      '<div class="cv-info"><small>'+esc(r.ini+' a '+r.fin)+'</small><b>'+linkRow(r)+'</b><small>'+esc(etiquetaAsig(r))+(r.cursos?'. '+esc(cursosTxt(r.cursos)):'')+'</small>'+(sala?'<small class="sala">'+svgIc('sala')+' '+esc(sala)+'</small>':'')+(r.co.length?'<small>Con '+esc(r.co.map(shortD).join(' y '))+'</small>':'')+'</div>'+quien+'</div>';
+  }).join('');
+  const fuera=jd?'<div class="jfuera ini" style="height:calc(var(--kk)*'+(mins(jd.ini)-t0)+'*1px)"></div><div class="jfuera fin" style="top:calc(var(--kk)*'+(mins(jd.fin)-t0)+'*1px);bottom:0"></div>':'';
+  return '<div class="cal-wrap cv-wrap" data-k="1" data-kmax="12" style="--kk:1"><div class="cal cv"><div class="cal-col cv-col" style="grid-column:2;grid-row:1;height:'+alto+';--hh:calc(var(--kk)*60px)">'+fuera+cards+'</div>'+axis+'</div></div>';
 }
 function resumenProfesionales(rows){
   const m={}; rows.forEach(r=>r.ok.forEach(p=>{(m[p.id]=m[p.id]||[]).push(r);}));
@@ -1237,7 +1296,7 @@ function resultadosPermiso(){
   const dias=diasHabiles(S.desde,S.hasta);
   if(!dias.length) return '<p class="note">Las fechas elegidas caen en fin de semana. Elija días de lunes a viernes.</p>';
   return dias.map(f=>bloqueDia(p.id,f)).join('')+'<div class="tools"><button class="btn wa" data-act="compartir" data-tipo="permiso" data-id="'+esc(p.id)+'">'+ICON.wa+' Enviar por WhatsApp</button><button class="btn" data-act="pdf" data-tipo="permiso" data-id="'+esc(p.id)+'">'+ICON.pdf+' Descargar PDF</button><button class="btn" data-act="copiar">Copiar resumen</button><button class="btn" data-act="print">'+ICON.print+' Imprimir</button></div>'+
-    '<p class="note">Solo aparecen los profesionales PIE (incluido el Aula de Recursos) que acompañan al docente en cada bloque según el horario. '+(S.inclColab?'La segunda opción (verde) son personas en horas de colaboración, sin clases en ese tramo. Quien tiene licencia o permiso nunca se incluye.':'No se consideran quienes tienen horas libres o de colaboración.')+' Desmarque los tramos que el permiso no incluye.</p>';
+    '<p class="note">Solo aparecen los profesionales PIE (incluido el Aula de Recursos) que acompañan al docente en cada bloque según el horario. Las opciones adicionales son siempre del mismo ciclo del curso. '+(S.inclColab?'La segunda opción (verde) son personas en horas de colaboración, sin clases en ese tramo. Quien tiene licencia o permiso nunca se incluye.':'No se consideran quienes tienen horas libres o de colaboración.')+' Desmarque los tramos que el permiso no incluye.</p>';
 }
 function railPermisos(){
   return '<label class="sr" for="q">Buscar docente</label><input id="q" class="search" type="search" placeholder="Buscar docente" value="'+esc(S.q)+'" autocomplete="off">'+
@@ -1250,7 +1309,7 @@ function stagePermisos(){
      '<div class="field"><label for="fh">Hasta</label><input id="fh" type="date" value="'+esc(S.hasta)+'"></div></div>'+
      '<p class="note">Para un solo día, deje la misma fecha en ambos campos.</p>'+
      '<label class="chk"><input type="checkbox" id="inccolab"'+(S.inclColab?' checked':'')+'> Incluir como segunda opción a quienes estén en horas de colaboración</label>'+
-     (S.inclColab?'<p class="note">Siempre aparece primero el profesional PIE del bloque. Después, el equipo PIE y los docentes que están en colaboración a esa hora y sin clases. Quien tenga licencia o permiso no se incluye.</p>':'')+'</div>';
+     (S.inclColab?'<p class="note">Siempre aparece primero el profesional PIE del bloque. Después, el equipo PIE y los docentes del mismo ciclo del curso que están en colaboración a esa hora y sin clases. Quien tenga licencia o permiso no se incluye.</p>':'')+'</div>';
   if(!p) return h+vacio('Aún no hay docente elegido','Al elegirlo verá sus cursos afectados ese día y qué profesionales PIE lo acompañan en cada bloque, que son quienes pueden cubrir.');
   return h+'<div id="resultados">'+resultadosPermiso()+'</div>';
 }
@@ -1493,7 +1552,7 @@ function formPersona(){
   let h='<div class="panel"><h3>'+(nuevo?'Nuevo '+rotulo:esc(f.nombre0||f.nombre))+'</h3>'+
     '<form data-form="persona"><label class="fld"><span>Nombre completo</span><input id="pf-nombre" value="'+esc(f.nombre)+'" required autocomplete="off"></label>'+
     '<label class="fld"><span>Mujer u hombre (para el ícono de entrada y salida)</span><select id="pf-sexo"><option value="">Sin indicar</option><option value="f"'+(f.sexo==='f'?' selected':'')+'>Mujer</option><option value="m"'+(f.sexo==='m'?' selected':'')+'>Hombre</option></select></label>'+
-    '<label class="fld"><span>Horas de contrato (con 43 o 44 horas la colación cuenta como tiempo de trabajo)</span><input id="pf-horas" type="number" min="1" max="45" value="'+esc(f.horas||'')+'" placeholder="Ej. 44"></label>'+
+    '<label class="fld"><span>Horas de contrato semanales (con 43 o 44 horas la colación cuenta como tiempo de trabajo)</span><input id="pf-horas" type="number" min="1" max="45" value="'+esc(f.horas||'')+'" placeholder="Ej. 44"></label>'+
     (pro?'<label class="fld"><span>Cargo</span><input id="pf-cargo" value="'+esc(f.cargo||'')+'" placeholder="Ej. Psicopedagoga" autocomplete="off"></label>':'')+
     (pie?'':'<label class="fld"><span>Nombre corto (como aparece en los horarios)</span><input id="pf-abrev" value="'+esc(f.abrev)+'" autocomplete="off"></label>'+
       '<label class="fld"><span>Departamento</span><input id="pf-dept" list="pf-depts" value="'+esc(f.dept)+'" autocomplete="off"></label><datalist id="pf-depts">'+depts.map(d=>'<option value="'+esc(d)+'">').join('')+'</datalist>')+
@@ -1542,7 +1601,7 @@ function aplicarPersona(){
     else o.tipo='docente';
     lista.push(o); f.id=o.id;
   }else{
-    const o=lista.find(p=>p.id===f.id); o.nombre=nombre; if(f.sexo) o.sexo=f.sexo; else delete o.sexo; if(+f.horas>0) o.horas=Math.round(+f.horas); else delete o.horas;
+    const o=lista.find(p=>p.id===f.id); o.nombre=nombre; if(f.sexo) o.sexo=f.sexo; else delete o.sexo; if(+f.horas>0){ if(o.horas!==Math.round(+f.horas)) delete o.hdet; o.horas=Math.round(+f.horas);} else {delete o.horas; delete o.hdet;}
     if(!pie){o.abrev=(f.abrev||'').trim()||nombre;o.dept=(f.dept||'').trim()||null;}
     if(pro) o.cargo=(f.cargo||'').trim()||'Profesional PIE';
   }
@@ -1618,7 +1677,7 @@ async function cargarServidor(){
     ['docentes','pie'].forEach(k=>D[k].forEach(p=>{ if(!p.jornada){const b=BASE[k].find(x=>x.id===p.id); if(b&&b.jornada) p.jornada=clonar(b.jornada);} }));
         /* v19: se incorporan, sin tocar lo editado, Romina Retamal (PIE) y los Electivo 4 de Educación física si el servidor aún no los tiene */
     /* v21: Colaborativo PIE pasa a ser un tipo propio (distinto de Colaboración) y se completa el sexo de cada persona */
-    ['docentes','pie'].forEach(k=>D[k].forEach(p=>{ (p.horario||[]).forEach(h=>{ if(h.t==='colab'&&/colaborativ/i.test(h.det||'')) h.t='colabpie'; }); {const b=BASE[k].find(x=>x.id===p.id); if(b){ if(!p.sexo&&b.sexo) p.sexo=b.sexo; if(!p.horas&&b.horas) p.horas=b.horas; }} }));
+    ['docentes','pie'].forEach(k=>D[k].forEach(p=>{ (p.horario||[]).forEach(h=>{ if(h.t==='colab'&&/colaborativ/i.test(h.det||'')) h.t='colabpie'; }); {const b=BASE[k].find(x=>x.id===p.id); if(b){ if(!p.sexo&&b.sexo) p.sexo=b.sexo; if(!p.horas&&b.horas) p.horas=b.horas; if(!p.hdet&&b.hdet&&p.horas===b.horas) p.hdet=clonar(b.hdet); }} }));
     let mig=false;
     if(!D.pie.some(x=>x.id==='R.Retamal')){ const b=BASE.pie.find(x=>x.id==='R.Retamal'); if(b){ D.pie.push(clonar(b)); mig=true;
       Object.keys(BASE.cursos).forEach(cid=>{ const c=D.cursos[cid]; if(!c) return; BASE.cursos[cid].blocks.forEach(bb=>Object.keys(bb.c).forEach(dd=>{ const q=(bb.c[dd].p||[]).find(z=>z.id==='R.Retamal'); if(!q) return; const t=c.blocks.find(x=>x.ini===bb.ini&&x.fin===bb.fin); const e=t&&t.c[dd]; if(e&&!e.el){ e.p=e.p||[]; if(!e.p.some(z=>z.id==='R.Retamal')) e.p.push({id:'R.Retamal',ar:!!q.ar}); } })); }); } }
@@ -1667,27 +1726,53 @@ function envolver(ctx,texto,maxW){
 }
 function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();}
 /* un "bloque" recibe (ctx, y, dibujar) y devuelve el nuevo y */
-function bEncabezado(ctx,y,dib,logo){
-  const h=150;
+const FONT_T='"Georgia","Times New Roman",serif';
+const fechaEmision=()=>new Date().toLocaleDateString('es-CL',{day:'numeric',month:'long',year:'numeric'});
+function bEncabezado(ctx,y,dib,logo,etq){
+  const h=134;
   if(dib){
-    const g=ctx.createLinearGradient(0,0,IMG_W,0); g.addColorStop(0,'#0c2d5a'); g.addColorStop(.6,'#123f7a'); g.addColorStop(1,'#1477c2');
+    const g=ctx.createLinearGradient(0,0,IMG_W,0); g.addColorStop(0,'#0a2550'); g.addColorStop(.55,'#0f3a74'); g.addColorStop(1,'#1368b0');
     ctx.fillStyle=g; ctx.fillRect(0,0,IMG_W,h);
-    const g2=ctx.createLinearGradient(0,0,IMG_W,0); g2.addColorStop(0,'#e3a72a'); g2.addColorStop(.45,'#f6cf62'); g2.addColorStop(1,'rgba(246,207,98,0)'); ctx.fillStyle=g2; ctx.fillRect(0,h,IMG_W,6);
-    if(logo){ctx.save(); rr(ctx,IMG_M,28,94,94,20); ctx.clip(); ctx.drawImage(logo,IMG_M,28,94,94); ctx.restore(); ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=3; rr(ctx,IMG_M,28,94,94,20); ctx.stroke();}
-    ctx.fillStyle='#fff'; ctx.textBaseline='alphabetic'; ctx.font='800 36px '+FONT; ctx.fillText('Colegio Marina de Chile',IMG_M+118,76);
-    ctx.fillStyle='#c6dcf2'; ctx.font='500 20px '+FONT; ctx.fillText('Concepción · Año escolar '+((D.meta&&D.meta.anio)||2026),IMG_M+118,110);
+    ctx.save(); ctx.globalAlpha=.07; ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(IMG_W-70,-20,170,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(IMG_W-210,150,120,0,Math.PI*2); ctx.fill(); ctx.restore();
+    const g2=ctx.createLinearGradient(0,0,IMG_W,0); g2.addColorStop(0,'#e3a72a'); g2.addColorStop(.5,'#f6cf62'); g2.addColorStop(1,'#e3a72a'); ctx.fillStyle=g2; ctx.fillRect(0,h,IMG_W,5);
+    const cx=IMG_M+48, cy=67;
+    ctx.beginPath(); ctx.arc(cx,cy,49,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
+    if(logo){ctx.save(); ctx.beginPath(); ctx.arc(cx,cy,43,0,Math.PI*2); ctx.clip(); ctx.drawImage(logo,cx-43,cy-43,86,86); ctx.restore();}
+    ctx.beginPath(); ctx.arc(cx,cy,49,0,Math.PI*2); ctx.strokeStyle='#e3a72a'; ctx.lineWidth=3.5; ctx.stroke();
+    ctx.textBaseline='alphabetic'; ctx.fillStyle='#fff'; ctx.font='700 35px '+FONT_T; ctx.fillText('Colegio Marina de Chile',IMG_M+118,66);
+    ctx.fillStyle='#f6cf62'; ctx.fillRect(IMG_M+118,78,54,3);
+    ctx.fillStyle='#c6dcf2'; ctx.font='500 17px '+FONT; ctx.fillText('Concepción · Año escolar '+((D.meta&&D.meta.anio)||2026),IMG_M+118,106);
+    if(etq){
+      ctx.textAlign='right'; ctx.fillStyle='#f6cf62'; ctx.font='700 21px '+FONT_T; ctx.fillText(etq,IMG_W-IMG_M,60);
+      ctx.fillStyle='#c6dcf2'; ctx.font='500 15.5px '+FONT; ctx.fillText('Emitido el '+fechaEmision(),IMG_W-IMG_M,86); ctx.textAlign='left';
+    }
   }
-  return h+6;
+  return h+5;
 }
+/* metas: texto suelto o par [rótulo, valor]; los pares forman la ficha de identificación */
 function bTitulo(ctx,y,dib,kicker,titulo,metas){
-  let yy=y+34;
-  if(dib){ctx.fillStyle='#1477c2'; ctx.font='700 20px '+FONT; ctx.fillText(kicker,IMG_M,yy+10);}
-  yy+=60;
-  ctx.font='800 46px '+FONT; const tl=envolver(ctx,titulo,IMG_W-2*IMG_M);
-  tl.forEach(l=>{if(dib){ctx.fillStyle='#0c2d5a'; ctx.font='800 46px '+FONT; ctx.fillText(l,IMG_M,yy);} yy+=54;});
-  ctx.font='500 21px '+FONT;
-  (metas||[]).forEach(m=>{envolver(ctx,m,IMG_W-2*IMG_M).forEach(l=>{if(dib){ctx.fillStyle='#52667f'; ctx.font='500 21px '+FONT; ctx.fillText(l,IMG_M,yy);} yy+=29;});});
-  return yy+14;
+  let yy=y+30;
+  ctx.font='700 43px '+FONT_T; const tl=envolver(ctx,titulo,IMG_W-2*IMG_M-28); const hT=tl.length*52;
+  if(dib){ ctx.fillStyle='#e3a72a'; rr(ctx,IMG_M,yy,6,hT-6,3); ctx.fill(); ctx.fillStyle='#0c2d5a'; ctx.font='700 43px '+FONT_T; tl.forEach((l,i)=>ctx.fillText(l,IMG_M+24,yy+38+i*52)); }
+  yy+=hT+8;
+  const M=(metas||[]).filter(Boolean), pares=M.filter(m=>Array.isArray(m)&&m[1]), txt=M.filter(m=>!Array.isArray(m));
+  if(pares.length||txt.length){
+    const colW=(IMG_W-2*IMG_M-48)/2, pad=16;
+    const fil=[]; for(let i=0;i<pares.length;i+=2) fil.push(pares.slice(i,i+2));
+    const med=fil.map(f=>f.map(p=>{ctx.font='700 19px '+FONT; return envolver(ctx,p[1],colW-14);}));
+    const hF=med.map(m=>22+Math.max.apply(null,m.map(l=>l.length))*25+8);
+    ctx.font='500 19px '+FONT; const tL=txt.map(t=>envolver(ctx,t,IMG_W-2*IMG_M-48));
+    const hTot=pad*2+hF.reduce((a,b)=>a+b,0)+tL.reduce((a,l)=>a+l.length*27,0);
+    if(dib){
+      rr(ctx,IMG_M,yy,IMG_W-2*IMG_M,hTot,12); ctx.fillStyle='#f4f7fb'; ctx.fill(); ctx.strokeStyle='#d6e1ee'; ctx.lineWidth=1.2; ctx.stroke();
+      ctx.save(); rr(ctx,IMG_M,yy,IMG_W-2*IMG_M,hTot,12); ctx.clip(); ctx.fillStyle='#e3a72a'; ctx.fillRect(IMG_M,yy,6,hTot); ctx.restore();
+      let fy=yy+pad;
+      fil.forEach((f,r)=>{ f.forEach((p,c)=>{ const x=IMG_M+26+c*(colW+10); ctx.fillStyle='#6b7f96'; ctx.font='600 14.5px '+FONT; ctx.fillText(p[0],x,fy+15); ctx.fillStyle='#10243f'; ctx.font='700 19px '+FONT; med[r][c].forEach((l,i)=>ctx.fillText(l,x,fy+38+i*25)); }); fy+=hF[r]; });
+      ctx.fillStyle='#2c4258'; ctx.font='500 19px '+FONT; tL.forEach(ls=>ls.forEach(l=>{ctx.fillText(l,IMG_M+26,fy+20); fy+=27;}));
+    }
+    yy+=hTot+8;
+  }
+  return yy+10;
 }
 /* tabla: cols = encabezados de día; filas = [{hora:[a,b], celdas:[ [item,...] x5 ]}|{recreo:'texto'}]
    item = {k:'mat', lineas:[{t,f,c}] } */
@@ -1696,7 +1781,7 @@ function bGrilla(ctx,y,dib,filas,hoyIdx){
   let yy=y;
   const hh=38;
   if(dib){
-    DIAS.forEach((d,i)=>{const x=x0+wT+gap+i*(wD+gap); rr(ctx,x,yy,wD,hh,10); ctx.fillStyle=(i===hoyIdx)?'#0c2d5a':'#eef3f9'; ctx.fill(); ctx.fillStyle=(i===hoyIdx)?'#fff':'#0c2d5a'; ctx.font='800 19px '+FONT; ctx.fillText(DIA_N[d],x+12,yy+25);});
+    DIAS.forEach((d,i)=>{const x=x0+wT+gap+i*(wD+gap); rr(ctx,x,yy,wD,hh,10); ctx.fillStyle='#0c2d5a'; ctx.fill(); ctx.save(); rr(ctx,x,yy,wD,hh,10); ctx.clip(); ctx.fillStyle='#e3a72a'; ctx.fillRect(x,yy+hh-3,wD,3); ctx.restore(); ctx.fillStyle='#fff'; ctx.font='800 19px '+FONT; ctx.fillText(DIA_N[d],x+12,yy+25);});
   }
   yy+=hh+gap;
   const R=filas, N=R.length;
@@ -1799,23 +1884,24 @@ function bCalendario(ctx,y,dib,evs,hoyIdx,Kp,jor,sx){
   DIAS.forEach(d=>{
     lanes(evs.filter(e=>e.d===d)).forEach(z=>{
       const e=z.e, ew=wD/z.n, mw=ew-3-18, pe=partesEv(e); let n=0;
+      if(mins(e.fin)-mins(e.ini)<=30&&pe.partes.length>2){ /* tarjeta corta: todo en un párrafo, como en pantalla */ pe.partes=[[pe.partes.map(p=>p[0]).filter(Boolean).join(' · '),'600 12px '+FONT,'#10243f']]; }
       pe.partes.forEach(p=>{ if(!p[0]) return; ctx.font=p[1]; n+=envolver(ctx,p[0],mw-(p[3]?18:(p===pe.partes[0]&&p[3]?18:0))).length; });
       const dur=Math.max(5,mins(e.fin)-mins(e.ini)); const need=(n*LH+12)/dur; if(need>K) K=Math.min(need,8);
       info.push({d,z,pe,ew});
     });
   });
-  const totSem=DIAS.reduce((t,d)=>t+minutosDia(jor,evs,d),0); const y00=y;
-  if(totSem){ y+=46; if(dib){ const tx='Horas de trabajo en la semana: '+hmTxt(totSem)+(jor._inc?' (colación incluida)':''); ctx.font='800 19px '+FONT; const w=ctx.measureText(tx).width; rr(ctx,x0,y00+2,w+52,34,12); ctx.fillStyle='#e8f1fb'; ctx.fill(); dibIcono(ctx,'reloj',x0+12,y00+8,22,'#1477c2'); ctx.fillStyle='#0c2d5a'; ctx.fillText(tx,x0+42,y00+26); } }
+  const si=semanaInfo(jor,evs); const y00=y;
+  if(si){ y+=46; if(dib){ const tx=(si.contrato?'Total semanal de contrato: ':'Horas de trabajo en la semana: ')+si.txt+(si.det?'  ('+si.det+')':'')+(jor._inc?' · colación incluida':''); ctx.font='800 19px '+FONT; const w=ctx.measureText(tx).width; rr(ctx,x0,y00+2,w+52,34,12); ctx.fillStyle='#e8f1fb'; ctx.fill(); dibIcono(ctx,'reloj',x0+12,y00+8,22,'#1477c2'); ctx.fillStyle='#0c2d5a'; ctx.fillText(tx,x0+42,y00+26); } }
   if(dib){
-    DIAS.forEach((d,i)=>{const x=x0+wT+gap+i*(wD+gap); rr(ctx,x,y,wD,hh,10); const hoy=(i===hoyIdx); ctx.fillStyle=hoy?'#0c2d5a':'#eef3f9'; ctx.fill(); ctx.fillStyle=hoy?'#fff':'#0c2d5a'; ctx.font='800 19px '+FONT; ctx.fillText(DIA_N[d],x+12,y+24);
+    DIAS.forEach((d,i)=>{const x=x0+wT+gap+i*(wD+gap); rr(ctx,x,y,wD,hh,10); const hoy=true; ctx.fillStyle='#0c2d5a'; ctx.fill(); ctx.save(); rr(ctx,x,y,wD,hh,10); ctx.clip(); ctx.fillStyle='#e3a72a'; ctx.fillRect(x,y+hh-3,wD,3); ctx.restore(); ctx.fillStyle='#fff'; ctx.font='800 19px '+FONT; ctx.fillText(DIA_N[d],x+12,y+24);
       if(jor[d]){
         [['entrada'+sexoK(sx),'Entrada',jor[d].ini,'#1faa59','#2fd27a'],['salida'+sexoK(sx),'Salida',jor[d].fin,'#d93a41','#ff7a73']].forEach((q,k)=>{
           const cx=x+10+k*(wD/2-2)+17, cy=y+52; ctx.save(); const g=ctx.createLinearGradient(cx-17,cy-17,cx+17,cy+17); g.addColorStop(0,q[4]); g.addColorStop(1,q[3]); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(cx,cy,17,0,Math.PI*2); ctx.fill(); ctx.restore();
           dibIcono(ctx,q[0],cx-12,cy-12,24,'#fff');
           ctx.fillStyle=hoy?'#dbe8f6':'#52667f'; ctx.font='600 11.5px '+FONT; ctx.fillText(q[1],cx+22,cy-3); ctx.fillStyle=hoy?'#fff':'#10243f'; ctx.font='800 17px '+FONT; ctx.fillText(q[2],cx+22,cy+15);
         });
-        const tt=hmTxt(minutosDia(jor,evs,d))+' de trabajo'+(jor._inc?' con colación':''); ctx.font='700 13px '+FONT; const tw=ctx.measureText(tt).width;
-        rr(ctx,x+10,y+80,tw+34,22,8); ctx.fillStyle=hoy?'rgba(255,255,255,.2)':'rgba(20,119,194,.13)'; ctx.fill(); dibIcono(ctx,'reloj',x+16,y+84,14,hoy?'#fff':'#0c4a82'); ctx.fillStyle=hoy?'#fff':'#0c4a82'; ctx.fillText(tt,x+34,y+96);
+        if(jor[d].real){ const tt=hmTxt(minutosDia(jor,evs,d))+' de trabajo'+(jor._inc?' con colación':''); ctx.font='700 13px '+FONT; const tw=ctx.measureText(tt).width;
+        rr(ctx,x+10,y+80,tw+34,22,8); ctx.fillStyle=hoy?'rgba(255,255,255,.2)':'rgba(20,119,194,.13)'; ctx.fill(); dibIcono(ctx,'reloj',x+16,y+84,14,hoy?'#fff':'#0c4a82'); ctx.fillStyle=hoy?'#fff':'#0c4a82'; ctx.fillText(tt,x+34,y+96); }
       }});
     const top=y+hh+gap;
     for(let m=t0;m<=t1;m+=60){const yy=top+(m-t0)*K; ctx.fillStyle='#52667f'; ctx.font='500 14px '+FONT; ctx.textAlign='right'; ctx.fillText(hhmm(m),x0+wT-8,yy+5); ctx.textAlign='left'; ctx.strokeStyle='#e6edf5'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x0+wT,yy); ctx.lineTo(IMG_W-IMG_M,yy); ctx.stroke();}
@@ -1856,6 +1942,51 @@ function bKV(ctx,y,dib,pares){
   return yy+4;
 }
 function bSubtitulo(ctx,y,dib,t){ if(dib){ctx.fillStyle='#0c2d5a'; ctx.font='800 26px '+FONT; ctx.fillText(t,IMG_M,y+30);} return y+46; }
+function bCobCal(ctx,y,dib,dat){
+  const x0=IMG_M, wT=62, gap=8, XC=x0+wT+gap, W=IMG_W-IMG_M-XC, wL=Math.round(W*.42), pad=12, LH=21;
+  const filas=dat.filas, otros=dat.otros||[], jd=dat.jd;
+  const ms=filas.map(f=>mins(f.ini)).concat(filas.map(f=>mins(f.fin)),otros.map(o=>mins(o.ini)),otros.map(o=>mins(o.fin))); if(jd) ms.push(mins(jd.ini),mins(jd.fin));
+  const t0=Math.floor(Math.min.apply(null,ms)/60)*60, t1=Math.ceil(Math.max.apply(null,ms)/60)*60;
+  /* texto de cada tramo, medido */
+  const wR=W-wL-pad*2-28; let K=1.3;
+  const cards=filas.map(f=>{
+    const L=[]; const add=(t,font,col,h,pill)=>{ if(!t) return; ctx.font=font; envolver(ctx,t,wL-pad-14-(pill?26:0)).forEach(l=>L.push({t:l,f:font,c:col,h:h||LH,pill:pill})); };
+    add(f.ini+' a '+f.fin,'500 14px '+FONT,'#52667f',19); add(f.que,'700 19px '+FONT,'#10243f',25); add(f.sub,'500 14.5px '+FONT,'#52667f',19); add(f.sala,'700 14px '+FONT,'#1a2600',22,'sala'); add(f.co,'500 14px '+FONT,'#2c4258',19);
+    const R=[]; const addR=(t,font,col,h)=>{ if(!t) return; ctx.font=font; envolver(ctx,t,wR).forEach(l=>R.push({t:l,f:font,c:col,h:h||LH})); };
+    if(f.ok) addR('Puede cubrir','800 13.5px '+FONT,'#064f5d',19); addR(f.cubre,f.ok?'700 18px '+FONT:'700 17.5px '+FONT,f.ok?'#064f5d':'#8f251c',24); addR(f.alerta,'800 14.5px '+FONT,'#c62828',21); addR(f.extra,'600 14.5px '+FONT,'#2f7d3a',21);
+    const hL=L.reduce((a,l)=>a+l.h,0)+pad*2, hR=R.reduce((a,l)=>a+l.h,0)+pad*2;
+    const dur=Math.max(5,mins(f.fin)-mins(f.ini)); const need=(Math.max(hL,hR)+6)/dur; if(need>K) K=need;
+    return {f,L,R,dur};
+  });
+  const alto=(t1-t0)*K, top=y+4;
+  if(dib){
+    for(let m=t0;m<=t1;m+=60){ const yy=top+(m-t0)*K; ctx.fillStyle='#52667f'; ctx.font='500 14px '+FONT; ctx.textAlign='right'; ctx.fillText(hhmm(m),x0+wT-8,yy+5); ctx.textAlign='left'; ctx.strokeStyle='#e6edf5'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(XC,yy); ctx.lineTo(IMG_W-IMG_M,yy); ctx.stroke(); }
+    if(jd){ const ya=top+(mins(jd.ini)-t0)*K, yb=top+(mins(jd.fin)-t0)*K; ctx.fillStyle='#eef2f7'; ctx.fillRect(XC,top,W,Math.max(0,ya-top)); ctx.fillRect(XC,yb,W,Math.max(0,top+alto-yb)); ctx.fillStyle='#1faa59'; ctx.fillRect(XC,ya-2,W,3); ctx.fillStyle='#e5484d'; ctx.fillRect(XC,yb-1,W,3); }
+    /* otras horas del docente, atenuadas: solo para saber en qué está */
+    otros.forEach(o=>{
+      if(filas.some(f=>mins(f.ini)<mins(o.fin)&&mins(o.ini)<mins(f.fin))) return;
+      const oy=top+(mins(o.ini)-t0)*K, oh=Math.max(16,(mins(o.fin)-mins(o.ini))*K-3), col=o.t==='colacion'?['#df7a1f','#fdecdc']:(EVCOL[o.t]||EVCOL.otro);
+      ctx.save(); ctx.globalAlpha=.7; rr(ctx,XC,oy,W,oh,9); ctx.fillStyle=col[1]; ctx.fill(); ctx.clip(); ctx.fillStyle=col[0]; ctx.fillRect(XC,oy,5,oh);
+      let tx=XC+14; if(o.ik){ dibIcono(ctx,o.ik,tx,oy+4,14,col[0]); tx+=19; }
+      ctx.fillStyle='#52667f'; ctx.font='700 14px '+FONT; ctx.fillText(o.rot,tx,oy+16); const w=ctx.measureText(o.rot).width; ctx.font='500 13px '+FONT; ctx.fillStyle='#7b8da1'; ctx.fillText('  '+o.ini+' a '+o.fin,tx+w,oy+16); ctx.restore();
+    });
+    cards.forEach(c=>{
+      const f=c.f, col=PAL[f.sk]||PAL.otr, cy=top+(mins(f.ini)-t0)*K, ch=c.dur*K-3;
+      rr(ctx,XC,cy,W,ch,11); ctx.fillStyle=col[1]; ctx.fill(); ctx.save(); rr(ctx,XC,cy,W,ch,11); ctx.clip(); ctx.fillStyle=col[0]; ctx.fillRect(XC,cy,6,ch); ctx.restore();
+      let ty=cy+pad;
+      c.L.forEach(l=>{ ctx.font=l.f; ctx.fillStyle=l.c; const hh=l.h;
+        if(l.pill==='sala'){ const tw=ctx.measureText(l.t).width+30; ctx.save(); ctx.shadowColor='rgba(176,255,0,.9)'; ctx.shadowBlur=6; rr(ctx,XC+16,ty,tw,19,9.5); ctx.fillStyle='#c8ff00'; ctx.fill(); ctx.restore(); ctx.strokeStyle='#8fc400'; ctx.lineWidth=1.2; rr(ctx,XC+16,ty,tw,19,9.5); ctx.stroke(); dibIcono(ctx,'sala',XC+21,ty+3,13,'#1a2600'); ctx.fillStyle='#1a2600'; ctx.font=l.f; ctx.fillText(l.t,XC+38,ty+14); }
+        else ctx.fillText(l.t,XC+18,ty+hh-6);
+        ty+=hh; });
+      const rx=XC+wL+pad, rw=W-wL-pad*2, rh=Math.min(ch-pad*1.2,Math.max(c.R.reduce((a,l)=>a+l.h,0)+pad*2,40));
+      rr(ctx,rx,cy+pad*.6,rw,rh,9); ctx.fillStyle='rgba(255,255,255,.88)'; ctx.fill(); ctx.save(); rr(ctx,rx,cy+pad*.6,rw,rh,9); ctx.clip(); ctx.fillStyle=f.ok?'#0a7d8c':'#c4372c'; ctx.fillRect(rx,cy+pad*.6,5,rh); ctx.restore();
+      let ry=cy+pad*.6+pad;
+      c.R.forEach(l=>{ ctx.font=l.f; ctx.fillStyle=l.c; ctx.fillText(l.t,rx+18,ry+l.h-6); ry+=l.h; });
+      BRK.push(cy+ch+4);
+    });
+  }
+  return top+alto+10;
+}
 function bCobertura(ctx,y,dib,filas){
   let yy=y; const wH=210, wQ=380, wC=IMG_W-2*IMG_M-wH-wQ-30;
   filas.forEach(f=>{
@@ -1881,13 +2012,23 @@ function bNota(ctx,y,dib,t){
   if(dib){ctx.fillStyle='#52667f'; ctx.font='500 16px '+FONT; ls.forEach((l,i)=>ctx.fillText(l,IMG_M,y+22+i*22));}
   return y+ls.length*22+30;
 }
-function bPie(ctx,y,dib){
+function bPie(ctx,y,dib,pag){
+  const h=56;
   if(dib){
-    ctx.fillStyle='#0c2d5a'; ctx.fillRect(0,y,IMG_W,52);
-    const g2=ctx.createLinearGradient(0,0,IMG_W,0); g2.addColorStop(0,'#e3a72a'); g2.addColorStop(.45,'#f6cf62'); g2.addColorStop(1,'rgba(246,207,98,0)'); ctx.fillStyle=g2; ctx.fillRect(0,y,IMG_W,4);
-    ctx.fillStyle='#c6dcf2'; ctx.font='500 16px '+FONT; const f=new Date(); ctx.fillText('Colegio Marina de Chile · Horarios '+((D.meta&&D.meta.anio)||2026)+' · Emitido el '+f.getDate()+'/'+(f.getMonth()+1)+'/'+f.getFullYear(),IMG_M,y+33);
+    ctx.fillStyle='#0a2550'; ctx.fillRect(0,y,IMG_W,h);
+    const g2=ctx.createLinearGradient(0,0,IMG_W,0); g2.addColorStop(0,'#e3a72a'); g2.addColorStop(.5,'#f6cf62'); g2.addColorStop(1,'#e3a72a'); ctx.fillStyle=g2; ctx.fillRect(0,y,IMG_W,4);
+    ctx.textBaseline='alphabetic'; ctx.fillStyle='#c6dcf2'; ctx.font='500 15px '+FONT;
+    ctx.fillText('Colegio Marina de Chile · Horarios '+((D.meta&&D.meta.anio)||2026)+(pag?'':' · Emitido el '+fechaEmision()),IMG_M,y+35);
+    if(pag){ ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='700 15px '+FONT; ctx.fillText(pag,IMG_W/2+30,y+35); ctx.textAlign='left'; }
+    /* crédito de diseño: pequeño, en la misma franja */
+    ctx.font='500 13px '+FONT; const t1='Diseñado por '; const w1=ctx.measureText(t1).width; ctx.font='700 13.5px '+FONT; const t2='Leandro Bascuñán Valdebenito'; const w2=ctx.measureText(t2).width;
+    const xr=IMG_W-IMG_M, x2=xr-w2, x1=x2-w1, cx=x1-20, cy=y+31;
+    ctx.beginPath(); ctx.arc(cx,cy,11,0,Math.PI*2); const g=ctx.createLinearGradient(cx-11,cy-11,cx+11,cy+11); g.addColorStop(0,'#123f7a'); g.addColorStop(1,'#1477c2'); ctx.fillStyle=g; ctx.fill(); ctx.strokeStyle='#e3a72a'; ctx.lineWidth=1.6; ctx.stroke();
+    ctx.fillStyle='#f6cf62'; ctx.font='800 9px '+FONT; ctx.textAlign='center'; ctx.fillText('LB',cx,cy+3.2); ctx.textAlign='left';
+    ctx.fillStyle='#9fb8d4'; ctx.font='500 13px '+FONT; ctx.fillText(t1,x1,y+35); ctx.fillStyle='#f6cf62'; ctx.font='700 13.5px '+FONT; ctx.fillText(t2,x2,y+35);
+    ctx.fillStyle='rgba(246,207,98,.55)'; ctx.fillRect(x2,y+39,w2,1.2);
   }
-  return y+52;
+  return y+h;
 }
 const itemL=(t,f,c,h)=>({t,f,c,h});
 const F_B='700 16.5px '+FONT, F_R='500 14px '+FONT, F_S='600 13.5px '+FONT;
@@ -1931,14 +2072,14 @@ function especificacion(tipo,id){
   if(tipo==='curso'){
     const c=D.cursos[id]; const j=c.jefe;
     return {archivo:'horario-'+id,titulo:'Horario '+cname(id),texto:'Horario de '+cname(id)+' (Colegio Marina de Chile)',bloques:[
-      ['t',corto(cicloDeCurso(id)),'Horario '+cname(id),[(j?'Jefatura: '+(DOC[j]?DOC[j].nombre:j):''),(c.sala?c.sala.charAt(0)+c.sala.slice(1).toLowerCase():'')].filter(Boolean)],
+      ['t','Horario de curso','Horario '+cname(id),[['Ciclo',corto(cicloDeCurso(id))],['Jefatura',j?(DOC[j]?DOC[j].nombre:j):''],['Sala',c.sala?salaFmt(c.sala):'']]],
       ['g',filasCurso(c)],
       ['n','PIE: profesional que acompaña en ese bloque. AR: atiende en Aula de Recursos. En los electivos, cada estudiante elige una de las opciones indicadas.']]};
   }
   if(tipo==='docente'){
     const p=DOC[id], w=TS[id]||emptyWeek(); const j=jefaturas[id];
     return {archivo:'horario-'+id,titulo:'Horario de '+p.nombre,texto:'Horario de '+p.nombre+' (Colegio Marina de Chile)',bloques:[
-      ['t','Horario docente',p.nombre,[(p.dept?p.dept:''),(j?'Jefatura de '+j.map(cname).join(' y '):'')].filter(Boolean)],
+      ['t','Horario docente',p.nombre,[['Departamento',p.dept||''],['Jefatura',j?j.map(cname).join(' y '):''],['Ciclos',(p.ciclos||[]).map(corto).join(', ')]]],
       ...ausBloques(id),(eventosDoc(p).length?['c',eventosDoc(p),1.7,jornadaDe(p,eventosDoc(p)),p.sexo]:['n','Este docente no tiene horas en el horario.']),['l',itemsLeyenda(eventosDoc(p))],
       ['n','PIE: profesional que acompaña al docente en ese bloque. AR: atiende en Aula de Recursos.']]};
   }
@@ -1947,29 +2088,40 @@ function especificacion(tipo,id){
     if(p.tipo==='profesional'){
       const evs=eventosPie(p);
       return {archivo:'horario-'+id,titulo:'Horario de '+p.nombre,texto:'Horario de '+p.nombre+' (Colegio Marina de Chile)',bloques:[
-        ['t',p.cargo||'Profesional PIE',p.nombre,['Atención en aula común y en aula de recursos']],...ausBloques(id),(evs.length?['c',evs,null,jornadaDe(p,evs),p.sexo]:['n','Todavía no hay atenciones cargadas.']),
+        ['t','Horario profesional PIE',p.nombre,[['Cargo',p.cargo||'Profesional PIE'],['Ciclos',(p.ciclos||[]).map(corto).join(', ')],'Atención en aula común y en aula de recursos']],...ausBloques(id),(evs.length?['c',evs,null,jornadaDe(p,evs),p.sexo]:['n','Todavía no hay atenciones cargadas.']),
         ['l',itemsLeyenda(evs)]]};
     }
     const w=PS[id]||emptyWeek();
     return {archivo:'horario-'+id,titulo:'Horario de '+p.nombre,texto:'Horario de '+p.nombre+' (Colegio Marina de Chile)',bloques:[
-      ['t','Docente PIE',p.nombre,['Apoyo a los cursos y docentes indicados']],...ausBloques(id),(eventosPersona(p,'pie').length?['c',eventosPersona(p,'pie'),1.7,jornadaDe(p,eventosPersona(p,'pie')),p.sexo]:['n','Todavía no hay horas cargadas.']),['l',itemsLeyenda(eventosPersona(p,'pie'))]]};
+      ['t','Horario docente PIE',p.nombre,[['Ciclos',(p.ciclos||[]).map(corto).join(', ')],'Apoyo a los cursos y docentes indicados']],...ausBloques(id),(eventosPersona(p,'pie').length?['c',eventosPersona(p,'pie'),1.7,jornadaDe(p,eventosPersona(p,'pie')),p.sexo]:['n','Todavía no hay horas cargadas.']),['l',itemsLeyenda(eventosPersona(p,'pie'))]]};
   }
   if(tipo==='electivo'){
     const g=GR[id], sl=unirSlots(g.slots), pies=pieDeGrupo(g);
     return {archivo:'electivo-'+g.id,titulo:'Electivo '+g.nombre,texto:'Electivo '+g.nombre+' (Colegio Marina de Chile)',bloques:[
-      ['t','Electivo '+g.e,g.nombre,[]],
+      ['t','Horario de electivo','Electivo '+g.nombre,[]],
       ['k',[['Docente',g.d.map(x=>DOC[x]?DOC[x].nombre:x).join(' y ')||'Sin asignar'],['Estudiantes de',cursosTxt(g.cursos)],['Horario',sl.map(slotTxt).join('\n')],['Apoyo PIE',pies.map(p=>shortP(p.id)+(p.ar?' (AR)':'')).join(', ')||'Sin apoyo PIE asignado']]]]};
   }
   if(tipo==='permiso'){
-    const p=DOC[id]; const dias=diasHabiles(S.desde,S.hasta); const bl=[['t','Cobertura de clases','Permiso de '+p.nombre,['Quiénes pueden cubrir según el horario: profesionales PIE que acompañan al docente en cada bloque.']]];
+    const p=DOC[id]; const dias=diasHabiles(S.desde,S.hasta);
+    const fr=dias.length?(dias.length>1?'Del '+fechaCorta(S.desde)+' al '+fechaCorta(S.hasta):fechaCorta(S.desde)):'';
+    const bl=[['t','Cobertura de clases','Permiso de '+p.nombre,[['Docente',p.nombre],['Fecha',fr],['Ciclos',(p.ciclos||[]).map(corto).join(', ')],'Quiénes pueden cubrir según el horario: profesionales PIE que acompañan al docente en cada bloque.']]];
     dias.forEach(f=>{
       const dia=DIAS[f.getDay()-1], key=iso(f);
       const rows=filasCobertura(p.id,dia,f).filter(r=>!S.off.has(key+'|'+r.cid+'|'+r.ini));
       bl.push(['s',fechaLarga(f)]);
       if(!rows.length) bl.push(['n','Sin clases este día.']);
-      else bl.push(['v',rows.map(r=>({hora:r.ini+' a '+r.fin,que:rotuloRow(r),sub:etiquetaAsig(r)+(r.cursos?' · '+cursosTxt(r.cursos):''),cubre:r.ok.length?'Pueden cubrir: '+r.ok.map(x=>shortP(x.id)+(x.ar?' (AR)':'')).join(', '):'Sin profesional PIE disponible',alerta:r.aus.length?r.aus.map(x=>(x.a.tipo==='licencia'?'CON LICENCIA: ':'Con permiso: ')+shortP(x.id)+', no disponible').join(' · '):'',extra:r.t2.length?'En colaboración (2ª opción): '+r.t2.map(txtT2).join(', '):'',ok:r.ok.length>0}))]);
+      else{
+        const jor=jornadaDe(p,eventosDoc(p)), jd=jor[dia]&&jor[dia].real?jor[dia]:null;
+        bl.push(['w',{
+          jd,
+          filas:rows.map(r=>({ini:r.ini,fin:r.fin,que:rotuloRow(r),sub:etiquetaAsig(r)+(r.cursos?' · '+cursosTxt(r.cursos):''),sala:salaFmt(r.sala||(r.el?'':salaDeCurso(r.cid))),co:r.co.length?'Con '+r.co.map(shortD).join(' y '):'',sk:r.el?'ele':subjKey(r.a),ok:r.ok.length>0,
+            cubre:r.ok.length?r.ok.map(x=>shortP(x.id)+(x.ar?' (AR)':'')).join(', '):(r.aus.length?'El apoyo PIE de este bloque no está disponible':'Sin profesional PIE en este bloque'),
+            alerta:r.aus.length?r.aus.map(x=>(x.a.tipo==='licencia'?'CON LICENCIA: ':'Con permiso: ')+shortP(x.id)+', no disponible').join(' · '):'',
+            extra:r.t2.length?'En colaboración (2ª opción): '+r.t2.map(txtT2).join(', '):''})),
+          otros:eventosPro(p.horario).filter(e=>e.d===dia&&OTRAS_ET.indexOf(e.t)>=0).map(e=>({ini:e.ini,fin:e.fin,t:e.t,rot:e.t==='colacion'?'Almuerzo':rotuloEv(e),ik:iconoKey(e)}))}]);
+      }
     });
-    bl.push(['n','Primero se indica quien acompaña al docente por horario.'+(S.inclColab?' La segunda opción son personas en horas de colaboración, sin clases en ese tramo.':' No se incluyen horas libres ni de colaboración.')+' Quien tiene licencia o permiso no se considera.']);
+    bl.push(['n','Primero se indica quien acompaña al docente por horario.'+(S.inclColab?' La segunda opción son personas del mismo ciclo del curso en horas de colaboración, sin clases en ese tramo.':' No se incluyen horas libres ni de colaboración.')+' Quien tiene licencia o permiso no se considera.']);
     return {archivo:'permiso-'+id+'-'+S.desde,titulo:'Permiso de '+p.nombre,texto:'Permiso de '+p.nombre+'. Cobertura de clases (Colegio Marina de Chile)',bloques:bl};
   }
   return null;
@@ -1977,13 +2129,15 @@ function especificacion(tipo,id){
 async function cargarLogo(){
   return new Promise(res=>{const im=new Image(); im.onload=()=>res(im); im.onerror=()=>res(null); im.src=document.getElementById('logo').src;});
 }
-async function generarImagen(tipo,id){
+async function generarImagen(tipo,id,opt){
+  opt=opt||{};
   const spec=especificacion(tipo,id); if(!spec) return null;
   try{ if(document.fonts){ await Promise.all(['500','600','700','800'].map(w=>document.fonts.load(w+' 16px "Plus Jakarta Sans"'))); } }catch(_){}
   const logo=await cargarLogo();
-  const hoyI=HOY?DIAS.indexOf(HOY):-1;
+  const hoyI=-1; /* documento formal: no se resalta el día de hoy */
+  const etq=(spec.bloques.find(b=>b[0]==='t')||[])[1]||'';
   const pasar=(ctx,dib)=>{
-    BRK=[]; let y=bEncabezado(ctx,0,dib,logo); BRK.push(y);
+    BRK=[]; let y=bEncabezado(ctx,0,dib,logo,etq); BRK.push(y);
     spec.bloques.forEach(b=>{
       if(typeof b==='function') b=b();
       const t=b[0];
@@ -1995,10 +2149,11 @@ async function generarImagen(tipo,id){
       else if(t==='k') y=bKV(ctx,y,dib,b[1]);
       else if(t==='s') y=bSubtitulo(ctx,y+6,dib,b[1]);
       else if(t==='v') y=bCobertura(ctx,y,dib,b[1]);
+      else if(t==='w') y=bCobCal(ctx,y,dib,b[1]);
       else if(t==='n') y=bNota(ctx,y+4,dib,b[1]);
       if(t!=='s') BRK.push(y);
     });
-    return bPie(ctx,y+10,dib);
+    return opt.pdf?y+14:bPie(ctx,y+10,dib);
   };
   // el primer bloque de curso es una función que devuelve la especificación del título
   const m=document.createElement('canvas').getContext('2d'); m.font='500 20px '+FONT;
@@ -2035,11 +2190,11 @@ function armarPDF(paginas,titulo){
   return new Blob(partes,{type:'application/pdf'});
 }
 async function generarPDF(tipo,id){
-  const r=await generarImagen(tipo,id); if(!r) return null;
-  const E=2, PWu=IMG_W, PHu=Math.round(IMG_W*841.89/595.28), PIE=46, CONT=78;
-  const util1=PHu-PIE, utilN=PHu-PIE-CONT;
+  const r=await generarImagen(tipo,id,{pdf:true}); if(!r) return null;
+  const E=2, PWu=IMG_W, PHu=Math.round(IMG_W*841.89/595.28), PIE=56, CONT=78;
+  const util1=PHu-PIE-8, utilN=PHu-PIE-CONT-8;
   // cortes sin partir filas
-  const cortes=[]; let ini=0; const ajuste=(r.H>util1&&util1/r.H>=0.45)?util1/r.H:1; /* todo en una página; solo si quedaría ilegible se reparte */
+  const cortes=[]; let ini=0; const ajuste=(r.H>util1&&util1/r.H>=(tipo==='permiso'?0.72:0.4))?util1/r.H:1; /* todo en una página; solo si quedaría ilegible se reparte */
   while(ini<r.H-1){
     const util=ini===0?util1:utilN; const lim=ini+util;
     if(r.H<=lim+0.5||ajuste<1){cortes.push([ini,r.H]); break;}
@@ -2052,16 +2207,16 @@ async function generarPDF(tipo,id){
     const c=cv.getContext('2d'); c.scale(E,E); c.fillStyle='#fff'; c.fillRect(0,0,PWu,PHu); c.textBaseline='alphabetic';
     let top=0;
     if(i>0){
-      const g=c.createLinearGradient(0,0,PWu,0); g.addColorStop(0,'#0c2d5a'); g.addColorStop(.6,'#123f7a'); g.addColorStop(1,'#1477c2'); c.fillStyle=g; c.fillRect(0,0,PWu,CONT-8);
-      c.fillStyle='#e3a72a'; c.fillRect(0,CONT-8,PWu,4);
-      if(r.logo){ c.save(); c.beginPath(); c.arc(IMG_M+27,(CONT-8)/2,27,0,Math.PI*2); c.clip(); c.drawImage(r.logo,IMG_M,(CONT-8)/2-27,54,54); c.restore(); }
-      c.fillStyle='#fff'; c.font='800 22px '+FONT; c.fillText('Colegio Marina de Chile',IMG_M+72,(CONT-8)/2-2);
-      c.fillStyle='#c6dcf2'; c.font='500 17px '+FONT; const tt=r.spec.titulo+' (continuación)'; c.fillText(tt.length>85?tt.slice(0,84)+'…':tt,IMG_M+72,(CONT-8)/2+22);
+      const g=c.createLinearGradient(0,0,PWu,0); g.addColorStop(0,'#0a2550'); g.addColorStop(.55,'#0f3a74'); g.addColorStop(1,'#1368b0'); c.fillStyle=g; c.fillRect(0,0,PWu,CONT-8);
+      const g2=c.createLinearGradient(0,0,PWu,0); g2.addColorStop(0,'#e3a72a'); g2.addColorStop(.5,'#f6cf62'); g2.addColorStop(1,'#e3a72a'); c.fillStyle=g2; c.fillRect(0,CONT-8,PWu,4);
+      if(r.logo){ c.beginPath(); c.arc(IMG_M+30,(CONT-8)/2,30,0,Math.PI*2); c.fillStyle='#fff'; c.fill(); c.save(); c.beginPath(); c.arc(IMG_M+30,(CONT-8)/2,26,0,Math.PI*2); c.clip(); c.drawImage(r.logo,IMG_M+4,(CONT-8)/2-26,52,52); c.restore(); c.beginPath(); c.arc(IMG_M+30,(CONT-8)/2,30,0,Math.PI*2); c.strokeStyle='#e3a72a'; c.lineWidth=2.5; c.stroke(); }
+      c.fillStyle='#fff'; c.font='700 23px '+FONT_T; c.fillText('Colegio Marina de Chile',IMG_M+76,(CONT-8)/2-3);
+      c.fillStyle='#c6dcf2'; c.font='500 16px '+FONT; const tt=r.spec.titulo+' (continuación)'; c.fillText(tt.length>85?tt.slice(0,84)+'…':tt,IMG_M+76,(CONT-8)/2+21);
       top=CONT;
     }
     if(ajuste<1){ const w2=PWu*ajuste; c.drawImage(r.cv,0,0,PWu*E,r.H*E,(PWu-w2)/2,0,w2,r.H*ajuste); }
     else c.drawImage(r.cv,0,a*E,PWu*E,(b-a)*E,0,top,PWu,b-a);
-    c.fillStyle='#8696a8'; c.font='500 15px '+FONT; c.textAlign='right'; c.fillText('Página '+(i+1)+' de '+n,PWu-IMG_M,PHu-16); c.textAlign='left';
+    bPie(c,PHu-PIE,true,'Página '+(i+1)+' de '+n);
     const blob=await new Promise(res=>cv.toBlob(res,'image/jpeg',0.93));
     pags.push({jpg:new Uint8Array(await blob.arrayBuffer()),w:cv.width,h:cv.height});
   }
@@ -2805,7 +2960,7 @@ function render(){
   leerHash();
   document.getElementById('tabs').innerHTML=TABS.map(t=>'<a class="tab'+(t[0]==='permisos'?' cta':'')+'" href="#/'+t[0]+'" '+(S.tab===t[0]?'aria-current="page"':'')+'>'+t[1]+(t[0]==='config'&&S.dirty?' •':'')+'</a>').join('');
   document.getElementById('banner').innerHTML=S.errCarga?'<div class="banner" role="alert">'+esc(S.errCarga)+'</div>':'';
-  document.getElementById('foot').textContent='Versión '+VERSION_APP+'. Datos generados el '+D.meta.generado+' a partir de los horarios, la distribución docente y los horarios de los profesionales PIE 2026.';
+  document.getElementById('foot').innerHTML='<span>Versión '+esc(VERSION_APP)+'. Datos generados el '+esc(D.meta.generado)+' a partir de los horarios, la distribución docente y los horarios de los profesionales PIE 2026.</span><span class="cred"><i class="cred-m" aria-hidden="true">LB</i>Diseñado por <b>Leandro Bascuñán Valdebenito</b></span>';
   if(S.cargando){ app.innerHTML='<div class="layout one"><div class="panel vacio-msg"><h2>Cargando horarios</h2><p>Un momento.</p></div></div>'; return; }
   if(S.tab==='config'){
     document.title='Configuración - Horarios 2026 - Colegio Marina de Chile';
@@ -2992,7 +3147,7 @@ app.addEventListener('submit',e=>{
   }else if(f.dataset.form==='entrar'){ entrar(document.getElementById('clave').value); }
 });
 function refrescarSavebar(){ if(!document.querySelector('.savebar')) app.insertAdjacentHTML('beforeend',savebar()); }
-function refrescarResultados(){const r=document.getElementById('resultados'); if(r) r.innerHTML=resultadosPermiso();}
+function refrescarResultados(){const r=document.getElementById('resultados'); if(r){ r.innerHTML=resultadosPermiso(); ajustarCal(r);} }
 async function entrar(clave){
   S.guardando=true; S.authErr=''; render();
   try{
