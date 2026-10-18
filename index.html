@@ -523,7 +523,7 @@ const API_URL = (window.APP_CONFIG && window.APP_CONFIG.API_URL) || "";
 const app = document.getElementById('app');
 if(!window.HORARIOS){ app.innerHTML='<div class="layout one"><div class="panel"><h2>No se cargaron los datos</h2><p>Falta el archivo data.js junto a index.html.</p></div></div>'; return; }
 const clonar = o => JSON.parse(JSON.stringify(o));
-const VERSION_APP = 'v24';
+const VERSION_APP = 'v25';
 const BASE = clonar(window.HORARIOS);
 let D = clonar(BASE);
 
@@ -664,6 +664,7 @@ const emptyWeek=()=>({Lu:[],Ma:[],Mi:[],Ju:[],Vi:[]});
 let TS={}, PS={}, jefaturas={};
 const countSlots=w=>w?DIAS.reduce((s,d)=>s+w[d].length,0):0;
 function construir(){
+  D.ausencias=(D.ausencias||[]).filter(a=>a.hasta>=hoyISO()); /* licencias y permisos terminados desaparecen solos */
   D.electivos=D.electivos||[];
   DOC=Object.fromEntries(D.docentes.map(x=>[x.id,x]));
   PIE=Object.fromEntries(D.pie.map(x=>[x.id,x]));
@@ -1240,7 +1241,7 @@ function bloqueDia(tid,fecha){
 /* Vista por bloques: el horario del docente ese día, con quién puede cubrir cada tramo */
 function calCobertura(tid,dia,key,rows){
   const p=DOC[tid];
-  const ot=eventosPro(p.horario).filter(e=>e.d===dia&&OTRAS_ET.indexOf(e.t)>=0);
+  const ot=[]; /* la cobertura solo muestra las horas de clases */
   const items=rows.map(r=>({ini:r.ini,fin:r.fin,r:r})).concat(ot.map(e=>({ini:e.ini,fin:e.fin,o:e})));
   const jor=jornadaDe(p,eventosDoc(p)), jd=jor[dia]&&jor[dia].real?jor[dia]:null;
   const ms=items.map(i=>mins(i.ini)).concat(items.map(i=>mins(i.fin))); if(jd) ms.push(mins(jd.ini),mins(jd.fin));
@@ -2118,7 +2119,7 @@ function especificacion(tipo,id){
             cubre:r.ok.length?r.ok.map(x=>shortP(x.id)+(x.ar?' (AR)':'')).join(', '):(r.aus.length?'El apoyo PIE de este bloque no está disponible':'Sin profesional PIE en este bloque'),
             alerta:r.aus.length?r.aus.map(x=>(x.a.tipo==='licencia'?'CON LICENCIA: ':'Con permiso: ')+shortP(x.id)+', no disponible').join(' · '):'',
             extra:r.t2.length?'En colaboración (2ª opción): '+r.t2.map(txtT2).join(', '):''})),
-          otros:eventosPro(p.horario).filter(e=>e.d===dia&&OTRAS_ET.indexOf(e.t)>=0).map(e=>({ini:e.ini,fin:e.fin,t:e.t,rot:e.t==='colacion'?'Almuerzo':rotuloEv(e),ik:iconoKey(e)}))}]);
+          otros:[]}]);
       }
     });
     bl.push(['n','Primero se indica quien acompaña al docente por horario.'+(S.inclColab?' La segunda opción son personas del mismo ciclo del curso en horas de colaboración, sin clases en ese tramo.':' No se incluyen horas libres ni de colaboración.')+' Quien tiene licencia o permiso no se considera.']);
